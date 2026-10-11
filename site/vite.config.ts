@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -17,13 +17,17 @@ function socialImage(): Plugin {
     transformIndexHtml: {
       order: 'post',
       handler(html, context) {
+        const language = context.filename === fromHere('./ja/index.html') ? 'ja' : 'en';
+        const screenshot = `docs/images/${language}/01-overview.png`;
+        // Vite can prepend the base to the placeholder on the root development page.
+        const setImage = (url: string) => html.replace(/content="[^"]*__SOCIAL_IMAGE__"/, () => `content="${url}"`);
         if (context.server) {
-          return html.replaceAll('__SOCIAL_IMAGE__', `${base}@fs/${fromHere('../docs/images/en/01-overview.png')}`);
+          return setImage(`${base}@fs/${fromHere(`../${screenshot}`)}`);
         }
         const image = Object.values(context.bundle ?? {}).find(asset =>
-          asset.type === 'asset' && asset.names.includes('01-overview.png'));
+          asset.type === 'asset' && asset.originalFileNames.some(path => path.replaceAll('\\', '/').endsWith(screenshot)));
         if (!image) throw new Error('The overview screenshot is missing from the site build.');
-        return html.replaceAll('__SOCIAL_IMAGE__', new URL(image.fileName, publishedUrl).href);
+        return setImage(new URL(image.fileName, publishedUrl).href);
       },
     },
   };
@@ -85,7 +89,7 @@ export default defineConfig({
     rollupOptions: {
       input: {
         en: fromHere('./index.html'),
-        ...(existsSync(fromHere('./ja/index.html')) ? { ja: fromHere('./ja/index.html') } : {}),
+        ja: fromHere('./ja/index.html'),
       },
       output: { banner: `/*! fflate\n${fflateLicense}\n*/` },
     },

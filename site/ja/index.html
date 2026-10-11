@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="1枚のイラストから、まばたきや口パクをする2Dアバターを作れます。Mesh Avatar Studio で調整し、mesh-avatar でアプリに組み込めます。" />
+    <title>Mesh Avatar Studio | 1枚のイラストを動かす</title>
+    <link rel="canonical" href="https://shinshin86.github.io/mesh-avatar-studio/ja/" />
+    <link rel="alternate" hreflang="en" href="https://shinshin86.github.io/mesh-avatar-studio/" />
+    <link rel="alternate" hreflang="ja" href="https://shinshin86.github.io/mesh-avatar-studio/ja/" />
+    <link rel="alternate" hreflang="x-default" href="https://shinshin86.github.io/mesh-avatar-studio/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Mesh Avatar Studio" />
+    <meta property="og:title" content="Mesh Avatar Studio | 1枚のイラストを動かす" />
+    <meta property="og:description" content="1枚のイラストを2Dアバターに。ローカルのエディタで動きを調整し、mesh-avatar でアプリに組み込めます。" />
+    <meta property="og:url" content="https://shinshin86.github.io/mesh-avatar-studio/ja/" />
+    <meta property="og:locale" content="ja_JP" />
+    <meta property="og:locale:alternate" content="en_US" />
+    <meta property="og:image" content="__SOCIAL_IMAGE__" />
+    <meta property="og:image:width" content="1440" />
+    <meta property="og:image:height" content="900" />
+    <meta property="og:image:alt" content="Mesh Avatar Studio の日本語画面。Miko のイラスト上に編集用の点が並び、右側に動作プレビューが表示されています。" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="icon" href="data:," />
+    <script type="module" src="/src/main.ts"></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">本文へ移動</a>
+    <header class="site-header shell">
+      <a class="brand" href="./" aria-label="Mesh Avatar Studio 日本語トップ">
+        <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true" fill="none">
+          <path d="M5 7 16 3l11 4v18l-11 4-11-4V7Z M5 7l11 10L27 7M5 25l11-8 11 8M16 3v26" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" />
+        </svg>
+        <span>Mesh Avatar Studio</span>
+      </a>
+      <nav class="primary-nav" aria-label="ページ内の案内">
+        <a class="header-link" href="#make">作り方</a>
+        <a class="header-link" href="#live">配信に使う</a>
+        <a class="header-link" href="#embed">組み込む</a>
+        <a class="header-link" href="https://github.com/shinshin86/mesh-avatar-studio">GitHub <span aria-hidden="true">↗</span></a>
+      </nav>
+      <a class="header-link language-switch" href="../" lang="en" hreflang="en">English</a>
+    </header>
+    <main id="main" class="shell">
+      <section class="hero" aria-labelledby="hero-title">
+        <div class="hero-copy">
+          <p class="eyebrow">イラストに、まばたきと表情を</p>
+          <h1 id="hero-title">Mesh Avatar<br />Studio</h1>
+          <p class="hero-pitch">1枚のイラストから、<br />動くアバターを作れます。</p>
+          <p class="hero-description">Studio で作成・調整し、<span class="package-name">mesh-avatar</span> で自分のアプリに組み込めます。</p>
+          <div class="hero-actions">
+            <a class="button primary" href="https://github.com/shinshin86/mesh-avatar-studio">GitHub で始める <span aria-hidden="true">↗</span></a>
+            <a class="button secondary" href="https://www.npmjs.com/package/mesh-avatar">npm で見る <span aria-hidden="true">↗</span></a>
+          </div>
+          <p class="hero-note">エディタはローカルで動きます。</p>
+        </div>
+        <figure class="demo">
+          <div class="demo-panel">
+            <div class="demo-heading">
+              <span class="demo-title">動作プレビュー</span>
+              <span class="demo-character">Miko</span>
+            </div>
+            <div class="avatar-stage" aria-busy="true">
+              <canvas id="avatar" role="img" aria-label="動く2Dアバターの Miko です。下のボタンで表情や口の動きを試せます。" width="960" height="960"></canvas>
+              <p id="avatar-status" class="avatar-status" role="status">プレビューを試すには JavaScript を有効にしてください。</p>
+            </div>
+            <div class="demo-controls">
+              <fieldset id="avatar-controls" disabled aria-describedby="demo-hint">
+                <legend class="sr-only">アバターの操作</legend>
+                <div id="expressions" class="expression-chips" role="group" aria-label="表情"></div>
+                <div class="talk-row">
+                  <p id="demo-hint">ポインターを動かすと、視線が追いかけます。</p>
+                  <button id="talk" class="talk-toggle" type="button" aria-pressed="false" aria-describedby="talk-hint"><span class="talk-indicator" aria-hidden="true"></span>口パク</button>
+                </div>
+              </fieldset>
+              <p id="talk-hint" class="demo-note">口の動きだけを試せます。音声は流れません。</p>
+            </div>
+          </div>
+          <figcaption>このプレビューも <a href="https://www.npmjs.com/package/mesh-avatar">mesh-avatar</a> で動いています。</figcaption>
+        </figure>
+      </section>
+      <section id="features" class="content-section" aria-labelledby="features-title">
+        <div class="section-heading">
+          <p class="eyebrow">できること</p>
+          <h2 id="features-title">まばたきも、口の動きも。</h2>
+          <p>Studio で作った動きや表情を、ランタイムで自分のアプリでも使えます。</p>
+        </div>
+        <div class="feature-grid">
+          <article class="feature-card">
+            <h3>まばたきと呼吸</h3>
+            <p>操作していない間も、まばたきや呼吸、待機中の動作が続きます。</p>
+          </article>
+          <article class="feature-card">
+            <h3>声に合わせた口パク</h3>
+            <p>声の大きさに合わせて口を動かせます。エディタでは母音や、かなの文章で口の形を確認できます。</p>
+          </article>
+          <article class="feature-card">
+            <h3>顔の向きと傾き</h3>
+            <p>顔や視線をパラメーターで操作できます。エディタのプレビューで動きを確認しながら調整できます。</p>
+          </article>
+          <article class="feature-card">
+            <h3>髪と飾りの揺れ</h3>
+            <p>物理演算で髪が少し遅れて動き、タッセルなどの飾りが振り子のように揺れます。</p>
+          </article>
+          <article class="feature-card">
+            <h3>表情と描き分け</h3>
+            <p>笑顔や驚き、ウインクに切り替えられます。目や口の描き分け画像を用意して、まばたきや口パクに使えます。</p>
+          </article>
+          <article class="feature-card">
+            <h3>ライティング</h3>
+            <p>光源の位置や陰影を調整できます。設定を保存し、配信の操作画面で切り替えられます。</p>
+          </article>
+        </div>
+      </section>
+      <section id="make" class="content-section" aria-labelledby="make-title">
+        <div class="section-heading">
+          <p class="eyebrow">Studio で作る</p>
+          <h2 id="make-title">イラストをアバターに。</h2>
+          <p>コーディングエージェントが動きの設定とレイヤー画像を用意します。仕上がりをローカルのエディタで確認し、パーツの位置を調整します。</p>
+        </div>
+        <ol class="steps">
+          <li class="step-card">
+            <div class="step-copy">
+              <span class="step-number" aria-hidden="true">01</span>
+              <h3>エージェントにイラストを渡す</h3>
+              <p>リポジトリで Claude Code や Codex を開き、<a href="https://github.com/shinshin86/mesh-avatar-studio/blob/main/docs/agent-guide.md">手順書（英語）</a>に沿って作るよう頼みます。正面向きで、背景が透明な PNG が適しています。</p>
+            </div>
+            <figure class="screenshot">
+              <a class="screenshot-link" aria-label="エディタ全体の画像を原寸で開く"><img data-screenshot="overview" width="1440" height="900" loading="lazy" decoding="async" alt="Miko のイラスト、編集用の点、動作プレビューを表示した日本語のエディタ画面。" /></a>
+              <figcaption>エージェントが用意したプロジェクトを開きます。</figcaption>
+            </figure>
+          </li>
+          <li class="step-card">
+            <div class="step-copy">
+              <span class="step-number" aria-hidden="true">02</span>
+              <h3>動きを確認する</h3>
+              <p>Studio でプロジェクトを開きます。<strong>「ポーズ確認」</strong>で顔の向きや目の開閉を、<strong>「口の動き」</strong>で母音ごとの口の形を確かめます。</p>
+            </div>
+            <figure class="screenshot">
+              <a class="screenshot-link" aria-label="口の動きを確認する画面を原寸で開く"><img data-screenshot="lipSync" width="1440" height="900" loading="lazy" decoding="async" alt="母音のボタンが並ぶ「口の動き」の欄と、口を開けたアバターのプレビュー。" /></a>
+              <figcaption>書き出す前に、ポーズと口の形を確認します。</figcaption>
+            </figure>
+          </li>
+          <li class="step-card">
+            <div class="step-copy">
+              <span class="step-number" aria-hidden="true">03</span>
+              <h3>点をドラッグして調整する</h3>
+              <p>パーツを選び、画像上の点を動かすとプレビューに反映されます。切り抜く輪郭を変更したときは、<strong>「保存してレイヤーを作り直す」</strong>を押します。</p>
+            </div>
+            <figure class="screenshot">
+              <a class="screenshot-link" aria-label="編集用の点を動かす画面を原寸で開く"><img data-screenshot="handles" width="1440" height="900" loading="lazy" decoding="async" alt="目の輪郭を拡大し、位置を調整する点を選んだ編集画面。" /></a>
+              <figcaption>イラストに合わせて、点の位置を直せます。</figcaption>
+            </figure>
+          </li>
+          <li class="step-card">
+            <div class="step-copy">
+              <span class="step-number" aria-hidden="true">04</span>
+              <h3>描き分けを加えて書き出す</h3>
+              <p><strong>「描き分け画像」</strong>から目や口の画像を依頼し、<strong>「.mavatar を書き出す」</strong>を選びます。設定、レイヤー、描き分け画像、アバターの情報を1つのファイルにまとめられます。</p>
+            </div>
+            <figure class="screenshot">
+              <a class="screenshot-link" aria-label="描き分け画像の依頼画面を原寸で開く"><img data-screenshot="variants" width="1440" height="900" loading="lazy" decoding="async" alt="エージェントに渡す、口の描き分け画像の依頼文を表示した画面。" /></a>
+              <figcaption>目や口の描き分けを加えてから書き出せます。</figcaption>
+            </figure>
+          </li>
+        </ol>
+        <p class="section-note"><code>npm install</code>、<code>npm run dev</code> でローカル起動できます。<a href="https://github.com/shinshin86/mesh-avatar-studio/blob/main/README.ja.md">セットアップ手順を見る <span aria-hidden="true">↗</span></a></p>
+      </section>
+      <section id="live" class="content-section" aria-labelledby="live-title">
+        <div class="section-heading">
+          <p class="eyebrow">配信に使う</p>
+          <h2 id="live-title">自分の顔や声で動かして、OBS へ。</h2>
+          <p>Studio の操作画面から、OBS 用の画面へアバターの動きを送れます。</p>
+        </div>
+        <div class="live-grid">
+          <article class="live-card">
+            <div class="live-copy">
+              <h3>顔の動きや声に合わせる</h3>
+              <p>カメラを開始して正面の姿勢を登録し、左右反転や感度、動きのなめらかさを調整します。カメラを使わず、待機動作にマイクの口パクを合わせることもできます。</p>
+            </div>
+            <figure class="screenshot">
+              <a class="screenshot-link" aria-label="配信の操作画面を原寸で開く"><img data-screenshot="live" width="1440" height="900" loading="lazy" decoding="async" alt="Miko と、顔の追跡、マイク、表情、背景、ライティングの設定が並ぶ配信の操作画面。" /></a>
+              <figcaption>カメラの映像とマイクの音声は、端末内で処理します。</figcaption>
+            </figure>
+          </article>
+          <article class="live-card">
+            <div class="live-copy">
+              <h3>OBS のブラウザソースに追加する</h3>
+              <p>背景を選んで OBS 用の URL をコピーし、「ブラウザ」ソースに貼り付けます。OBS では透明背景で重ねられます。他の取り込みソフトでは、緑の背景をクロマキーで抜く方法も使えます。</p>
+            </div>
+            <figure class="screenshot">
+              <a class="screenshot-link" aria-label="OBS 用の画面を原寸で開く"><img data-screenshot="stream" width="1440" height="900" loading="lazy" decoding="async" alt="操作ボタンを表示せず、クロマキー用の緑の背景に Miko だけを映した画面。" /></a>
+              <figcaption>取り込み用の画面には、アバターだけを表示します。</figcaption>
+            </figure>
+          </article>
+        </div>
+        <p class="section-note">どちらの画面もローカルの開発サーバーで動きます。配信中は、操作画面を専用のウィンドウで開いたままにしてください。<a href="https://github.com/shinshin86/mesh-avatar-studio/blob/main/docs/reference.md#live-and-streaming">配信の詳しい使い方（英語）<span aria-hidden="true">↗</span></a></p>
+      </section>
+      <section id="embed" class="content-section" aria-labelledby="embed-title">
+        <div class="section-heading">
+          <p class="eyebrow">mesh-avatar で組み込む</p>
+          <h2 id="embed-title">自分のアプリで動かす。</h2>
+          <p>Studio で書き出したファイルを読み込むと、動き始めます。アプリからポーズや表情、声の大きさを操作できます。</p>
+        </div>
+        <div class="embed-grid">
+          <div class="embed-details">
+            <ul class="runtime-facts" aria-label="ランタイムの形式と動作条件">
+              <li>WebGL</li><li>ES modules</li><li>TypeScript の型定義</li><li>React への依存なし</li>
+            </ul>
+            <div class="code-card">
+              <div class="code-heading"><h3>ランタイムをインストール</h3><button type="button" class="copy-button" data-copy="install-code" aria-describedby="install-feedback" disabled>コピー</button></div>
+              <pre tabindex="0" aria-label="インストールコマンド"><code id="install-code">npm install mesh-avatar</code></pre>
+              <p id="install-feedback" class="copy-feedback" role="status"></p>
+            </div>
+            <p><code>.mavatar</code> ファイルをアプリの公開アセットに置きます。HTML に canvas を追加し、アプリのモジュールから JavaScript を実行します。</p>
+            <p>待機動作とまばたきは自動で始まります。話すときは、アプリ側で音声を再生し、その大きさをランタイムに渡します。</p>
+            <a class="text-link" href="https://github.com/shinshin86/mesh-avatar-studio/tree/main/packages/runtime#drive-the-avatar">ランタイムの API と使用例（英語）<span aria-hidden="true">↗</span></a>
+          </div>
+          <div class="embed-code">
+            <div class="code-card">
+              <div class="code-heading"><h3>canvas を追加 <span>HTML</span></h3><button type="button" class="copy-button" data-copy="canvas-code" aria-describedby="canvas-feedback" disabled>コピー</button></div>
+              <pre tabindex="0" aria-label="canvas の HTML"><code id="canvas-code">&lt;canvas id="avatar" width="720" height="960"&gt;&lt;/canvas&gt;</code></pre>
+              <p id="canvas-feedback" class="copy-feedback" role="status"></p>
+            </div>
+            <div class="code-card">
+              <div class="code-heading"><h3>読み込んで動かす <span>JavaScript</span></h3><button type="button" class="copy-button" data-copy="avatar-code" aria-describedby="avatar-feedback" disabled>コピー</button></div>
+              <pre tabindex="0" aria-label="JavaScript の使用例"><code id="avatar-code">import { loadMeshAvatar } from 'mesh-avatar';
+
+const canvas = document.querySelector('#avatar');
+const avatar = await loadMeshAvatar(
+  canvas, '/avatars/character.mavatar'
+);
+
+// 表情やポーズを指定します。
+avatar.setExpression('smile');
+avatar.setParameters({ angleX: 10, gazeX: 0.25 });
+
+// アプリで音声を再生し、その大きさ（0〜1）を渡します。
+avatar.setSpeaking(true);
+avatar.setVoiceLevel(0.6);
+
+// 話し終わったら、待機状態に戻します。
+avatar.setVoiceLevel(0);
+avatar.setSpeaking(false);
+avatar.setExpression('neutral');
+avatar.setParameters({});
+
+// canvas を取り除くときは avatar.destroy() を呼びます。</code></pre>
+              <p id="avatar-feedback" class="copy-feedback" role="status"></p>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+    <footer class="site-footer shell">
+      <div class="footer-top">
+        <div><p class="footer-brand">Mesh Avatar Studio</p><p>Studio で作り、mesh-avatar でアプリに組み込めます。</p></div>
+        <nav class="footer-links" aria-label="プロジェクトの資料">
+          <a href="https://github.com/shinshin86/mesh-avatar-studio">GitHub</a>
+          <a href="https://www.npmjs.com/package/mesh-avatar">npm</a>
+          <a href="https://github.com/shinshin86/mesh-avatar-studio/blob/main/docs/format.md">アバター形式（英語）</a>
+          <a href="https://github.com/shinshin86/mesh-avatar-studio/blob/main/docs/agent-guide.md">エージェント向け手順書（英語）</a>
+        </nav>
+      </div>
+      <div class="license-notes">
+        <p>コードは <a href="https://github.com/shinshin86/mesh-avatar-studio/blob/main/LICENSE">MIT License</a> です。アバターのイラストには別の利用条件が適用されます。</p>
+        <p>Miko © Yuki Shindo (AITuber OnAir)。<a href="https://miko.aituberonair.com/#terms">Miko キャラクター利用ガイドライン</a>に従って使用しています。</p>
+        <p>本プロジェクトは AITuber OnAir の公式製品ではありません。</p>
+      </div>
+    </footer>
+  </body>
+</html>

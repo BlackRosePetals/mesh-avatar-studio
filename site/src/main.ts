@@ -1,17 +1,29 @@
 import { LIVE_EXPRESSIONS, loadMeshAvatar, type LiveExpression, type MeshAvatar } from 'mesh-avatar';
-import { copy } from './messages';
+import { copy, language } from './messages';
 import overviewImage from '../../docs/images/en/01-overview.png';
 import handlesImage from '../../docs/images/en/02-edit-handles.png';
 import lipSyncImage from '../../docs/images/en/03-lip-sync.png';
 import variantsImage from '../../docs/images/en/05-variants.png';
 import liveImage from '../../docs/images/en/07-live.png';
 import streamImage from '../../docs/images/en/08-stream.png';
+import overviewImageJa from '../../docs/images/ja/01-overview.png';
+import handlesImageJa from '../../docs/images/ja/02-edit-handles.png';
+import lipSyncImageJa from '../../docs/images/ja/03-lip-sync.png';
+import variantsImageJa from '../../docs/images/ja/05-variants.png';
+import liveImageJa from '../../docs/images/ja/07-live.png';
+import streamImageJa from '../../docs/images/ja/08-stream.png';
 import './style.css';
 
 const screenshots: Record<string, string> = {
-  overview: overviewImage, handles: handlesImage, lipSync: lipSyncImage,
-  variants: variantsImage, live: liveImage, stream: streamImage,
-};
+  en: {
+    overview: overviewImage, handles: handlesImage, lipSync: lipSyncImage,
+    variants: variantsImage, live: liveImage, stream: streamImage,
+  },
+  ja: {
+    overview: overviewImageJa, handles: handlesImageJa, lipSync: lipSyncImageJa,
+    variants: variantsImageJa, live: liveImageJa, stream: streamImageJa,
+  },
+}[language];
 for (const image of document.querySelectorAll<HTMLImageElement>('img[data-screenshot]')) {
   image.src = screenshots[image.dataset.screenshot!];
   const link = image.closest('a');
