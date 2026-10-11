@@ -119,6 +119,13 @@ h3 { margin: 0; font-size: 18px; font-weight: 650; line-height: 1.4; letter-spac
 code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
 pre { margin: 0; padding: 20px 18px; overflow-x: auto; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; line-height: 1.8; tab-size: 2; }
 pre:focus-visible { outline: 2px solid #7aa2f7; outline-offset: -4px; }
+.tok-comment { color: #7f8ea3; }
+.tok-keyword { color: #c4a7f5; }
+.tok-string { color: #a5d6a7; }
+.tok-number, .tok-literal { color: #f6c177; }
+.tok-function { color: #82b1ff; }
+.tok-property, .tok-attr { color: #f5b8c4; }
+.tok-tag { color: #7dcfdb; }
 .copy-feedback { margin: 0; padding: 0 18px; color: var(--code-muted); font-size: 11px; line-height: 1.5; }
 .copy-feedback:not(:empty) { padding-bottom: 12px; }
 .site-footer { padding-block: 40px; font-size: 12px; }

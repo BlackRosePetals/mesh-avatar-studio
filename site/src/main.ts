@@ -1,4 +1,5 @@
 import { LIVE_EXPRESSIONS, loadMeshAvatar, type LiveExpression, type MeshAvatar } from 'mesh-avatar';
+import { highlightCodeSamples } from './highlight';
 import { copy, language } from './messages';
 import overviewImage from '../../docs/images/en/01-overview.png';
 import handlesImage from '../../docs/images/en/02-edit-handles.png';
@@ -29,6 +30,8 @@ for (const image of document.querySelectorAll<HTMLImageElement>('img[data-screen
   const link = image.closest('a');
   if (link) link.href = image.src;
 }
+
+highlightCodeSamples();
 
 for (const button of document.querySelectorAll<HTMLButtonElement>('button[data-copy]')) {
   const code = document.getElementById(button.dataset.copy!)!;

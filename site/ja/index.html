@@ -209,7 +209,7 @@
             </ul>
             <div class="code-card">
               <div class="code-heading"><h3>ランタイムをインストール</h3><button type="button" class="copy-button" data-copy="install-code" aria-describedby="install-feedback" disabled>コピー</button></div>
-              <pre tabindex="0" aria-label="インストールコマンド"><code id="install-code">npm install mesh-avatar</code></pre>
+              <pre tabindex="0" aria-label="インストールコマンド"><code id="install-code" data-lang="shell">npm install mesh-avatar</code></pre>
               <p id="install-feedback" class="copy-feedback" role="status"></p>
             </div>
             <p><code>.mavatar</code> ファイルをアプリの公開アセットに置きます。HTML に canvas を追加し、アプリのモジュールから JavaScript を実行します。</p>
@@ -219,12 +219,12 @@
           <div class="embed-code">
             <div class="code-card">
               <div class="code-heading"><h3>canvas を追加 <span>HTML</span></h3><button type="button" class="copy-button" data-copy="canvas-code" aria-describedby="canvas-feedback" disabled>コピー</button></div>
-              <pre tabindex="0" aria-label="canvas の HTML"><code id="canvas-code">&lt;canvas id="avatar" width="720" height="960"&gt;&lt;/canvas&gt;</code></pre>
+              <pre tabindex="0" aria-label="canvas の HTML"><code id="canvas-code" data-lang="html">&lt;canvas id="avatar" width="720" height="960"&gt;&lt;/canvas&gt;</code></pre>
               <p id="canvas-feedback" class="copy-feedback" role="status"></p>
             </div>
             <div class="code-card">
               <div class="code-heading"><h3>読み込んで動かす <span>JavaScript</span></h3><button type="button" class="copy-button" data-copy="avatar-code" aria-describedby="avatar-feedback" disabled>コピー</button></div>
-              <pre tabindex="0" aria-label="JavaScript の使用例"><code id="avatar-code">import { loadMeshAvatar } from 'mesh-avatar';
+              <pre tabindex="0" aria-label="JavaScript の使用例"><code id="avatar-code" data-lang="js">import { loadMeshAvatar } from 'mesh-avatar';
 
 const canvas = document.querySelector('#avatar');
 const avatar = await loadMeshAvatar(

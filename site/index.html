@@ -209,7 +209,7 @@
             </ul>
             <div class="code-card">
               <div class="code-heading"><h3>Install the runtime</h3><button type="button" class="copy-button" data-copy="install-code" aria-describedby="install-feedback" disabled>Copy</button></div>
-              <pre tabindex="0" aria-label="Install command"><code id="install-code">npm install mesh-avatar</code></pre>
+              <pre tabindex="0" aria-label="Install command"><code id="install-code" data-lang="shell">npm install mesh-avatar</code></pre>
               <p id="install-feedback" class="copy-feedback" role="status"></p>
             </div>
             <p>Place your <code>.mavatar</code> file in your app’s public assets. Add the canvas to your HTML and run the JavaScript from your app’s module entry.</p>
@@ -219,12 +219,12 @@
           <div class="embed-code">
             <div class="code-card">
               <div class="code-heading"><h3>Add a canvas <span>HTML</span></h3><button type="button" class="copy-button" data-copy="canvas-code" aria-describedby="canvas-feedback" disabled>Copy</button></div>
-              <pre tabindex="0" aria-label="Canvas HTML"><code id="canvas-code">&lt;canvas id="avatar" width="720" height="960"&gt;&lt;/canvas&gt;</code></pre>
+              <pre tabindex="0" aria-label="Canvas HTML"><code id="canvas-code" data-lang="html">&lt;canvas id="avatar" width="720" height="960"&gt;&lt;/canvas&gt;</code></pre>
               <p id="canvas-feedback" class="copy-feedback" role="status"></p>
             </div>
             <div class="code-card">
               <div class="code-heading"><h3>Load and control it <span>JavaScript</span></h3><button type="button" class="copy-button" data-copy="avatar-code" aria-describedby="avatar-feedback" disabled>Copy</button></div>
-              <pre tabindex="0" aria-label="JavaScript runtime example"><code id="avatar-code">import { loadMeshAvatar } from 'mesh-avatar';
+              <pre tabindex="0" aria-label="JavaScript runtime example"><code id="avatar-code" data-lang="js">import { loadMeshAvatar } from 'mesh-avatar';
 
 const canvas = document.querySelector('#avatar');
 const avatar = await loadMeshAvatar(
