@@ -6,6 +6,8 @@ Turn a single illustration into an animated 2D mesh avatar: it blinks, talks, tu
 breathes and sways its hair. A coding agent prepares the avatar from your image; you fine-tune
 it in a local editor with a live preview.
 
+See it move on the [landing page](https://shinshin86.github.io/mesh-avatar-studio/).
+
 ![The editor with the Miko sample](docs/images/en/01-overview.png)
 
 ## Try the sample
