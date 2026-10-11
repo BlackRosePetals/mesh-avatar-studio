@@ -77,7 +77,7 @@
               <p id="talk-hint" class="demo-note">Try talking — this demo has no audio.</p>
             </div>
           </div>
-          <figcaption>Running here with <a href="https://www.npmjs.com/package/mesh-avatar">mesh-avatar</a>.</figcaption>
+          <figcaption>Running here with <a href="https://www.npmjs.com/package/mesh-avatar">mesh-avatar</a>. <button type="button" class="view-code" data-open-dialog="code-dialog" aria-haspopup="dialog"><svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5.5 4 2 8l3.5 4M10.5 4 14 8l-3.5 4" /></svg>View the code</button></figcaption>
         </figure>
       </section>
       <section id="features" class="content-section" aria-labelledby="features-title">
@@ -269,5 +269,54 @@ avatar.setParameters({});
         <p>This is not an official AITuber OnAir product.</p>
       </div>
     </footer>
+    <dialog id="code-dialog" class="code-dialog" aria-labelledby="code-dialog-title">
+      <div class="code-card">
+        <div class="code-heading">
+          <h2 id="code-dialog-title">How this preview works <span>JavaScript</span></h2>
+          <div class="code-actions">
+            <button type="button" class="copy-button" data-copy="demo-code" aria-describedby="demo-feedback" disabled>Copy</button>
+            <button type="button" class="dialog-close" data-close-dialog aria-label="Close"><span aria-hidden="true">×</span></button>
+          </div>
+        </div>
+        <pre tabindex="0" aria-label="JavaScript for this preview"><code id="demo-code" data-lang="js">import { loadMeshAvatar } from 'mesh-avatar';
+
+const canvas = document.querySelector('#avatar');
+const avatar = await loadMeshAvatar(canvas, 'miko.mavatar', { padTop: -0.04 });
+
+// Expression buttons switch the face.
+for (const button of document.querySelectorAll('[data-expression]')) {
+  button.addEventListener('click', () =&gt; {
+    avatar.setExpression(button.dataset.expression);
+  });
+}
+
+// Talk toggles speaking; this demo sends a silent loudness curve instead of audio.
+let speaking = false;
+document.querySelector('#talk').addEventListener('click', () =&gt; {
+  speaking = !speaking;
+  avatar.setSpeaking(speaking);
+  if (!speaking) avatar.setVoiceLevel(0);
+});
+
+// Turn the head and eyes toward the pointer (x and y run from -1 to 1).
+const hero = document.querySelector('.hero');
+hero.addEventListener('pointermove', (event) =&gt; {
+  const rect = hero.getBoundingClientRect();
+  const x = (event.clientX - rect.left) / rect.width * 2 - 1;
+  const y = 1 - (event.clientY - rect.top) / rect.height * 2;
+  avatar.setParameters({ angleX: x * 12, angleY: y * 8, gazeX: x * 0.7, gazeY: y * 0.55 });
+});
+hero.addEventListener('pointerleave', () =&gt; avatar.setParameters({}));
+
+// While talking, send a loudness value (0–1) every frame.
+function frame(time) {
+  if (speaking) avatar.setVoiceLevel(Math.abs(Math.sin(time / 90)));
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);</code></pre>
+        <p id="demo-feedback" class="copy-feedback" role="status"></p>
+        <p class="dialog-note">Simplified from this page’s script. <a href="https://github.com/shinshin86/mesh-avatar-studio/blob/main/site/src/main.ts">Full source on GitHub <span aria-hidden="true">↗</span></a></p>
+      </div>
+    </dialog>
   </body>
 </html>
