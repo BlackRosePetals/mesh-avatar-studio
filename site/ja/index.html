@@ -70,14 +70,14 @@
                 <legend class="sr-only">アバターの操作</legend>
                 <div id="expressions" class="expression-chips" role="group" aria-label="表情"></div>
                 <div class="talk-row">
-                  <p id="demo-hint">ポインターを動かすと、視線が追いかけます。</p>
+                  <p id="demo-hint">ポインターを動かすと、その方向へ顔を向けます。</p>
                   <button id="talk" class="talk-toggle" type="button" aria-pressed="false" aria-describedby="talk-hint"><span class="talk-indicator" aria-hidden="true"></span>口パク</button>
                 </div>
               </fieldset>
               <p id="talk-hint" class="demo-note">口の動きだけを試せます。音声は流れません。</p>
             </div>
           </div>
-          <figcaption>このプレビューも <a href="https://www.npmjs.com/package/mesh-avatar">mesh-avatar</a> で動いています。</figcaption>
+          <figcaption>このプレビューも <a href="https://www.npmjs.com/package/mesh-avatar">mesh-avatar</a> で動いています。 <button type="button" class="view-code" data-open-dialog="code-dialog" aria-haspopup="dialog"><svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5.5 4 2 8l3.5 4M10.5 4 14 8l-3.5 4" /></svg>コードを見る</button></figcaption>
         </figure>
       </section>
       <section id="features" class="content-section" aria-labelledby="features-title">
@@ -269,5 +269,54 @@ avatar.setParameters({});
         <p>本プロジェクトは AITuber OnAir の公式製品ではありません。</p>
       </div>
     </footer>
+    <dialog id="code-dialog" class="code-dialog" aria-labelledby="code-dialog-title">
+      <div class="code-card">
+        <div class="code-heading">
+          <h2 id="code-dialog-title">このプレビューのしくみ <span>JavaScript</span></h2>
+          <div class="code-actions">
+            <button type="button" class="copy-button" data-copy="demo-code" aria-describedby="demo-feedback" disabled>コピー</button>
+            <button type="button" class="dialog-close" data-close-dialog aria-label="閉じる"><span aria-hidden="true">×</span></button>
+          </div>
+        </div>
+        <pre tabindex="0" aria-label="このプレビューの JavaScript"><code id="demo-code" data-lang="js">import { loadMeshAvatar } from 'mesh-avatar';
+
+const canvas = document.querySelector('#avatar');
+const avatar = await loadMeshAvatar(canvas, 'miko.mavatar', { padTop: -0.04 });
+
+// 表情ボタンで顔を切り替えます。
+for (const button of document.querySelectorAll('[data-expression]')) {
+  button.addEventListener('click', () =&gt; {
+    avatar.setExpression(button.dataset.expression);
+  });
+}
+
+// 口パクの切り替え。このデモは音声の代わりに、無音の音量カーブを送ります。
+let speaking = false;
+document.querySelector('#talk').addEventListener('click', () =&gt; {
+  speaking = !speaking;
+  avatar.setSpeaking(speaking);
+  if (!speaking) avatar.setVoiceLevel(0);
+});
+
+// ポインターの方へ顔と視線を向けます(x と y は -1〜1)。
+const hero = document.querySelector('.hero');
+hero.addEventListener('pointermove', (event) =&gt; {
+  const rect = hero.getBoundingClientRect();
+  const x = (event.clientX - rect.left) / rect.width * 2 - 1;
+  const y = 1 - (event.clientY - rect.top) / rect.height * 2;
+  avatar.setParameters({ angleX: x * 12, angleY: y * 8, gazeX: x * 0.7, gazeY: y * 0.55 });
+});
+hero.addEventListener('pointerleave', () =&gt; avatar.setParameters({}));
+
+// 話している間は、毎フレーム音量(0〜1)を送ります。
+function frame(time) {
+  if (speaking) avatar.setVoiceLevel(Math.abs(Math.sin(time / 90)));
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);</code></pre>
+        <p id="demo-feedback" class="copy-feedback" role="status"></p>
+        <p class="dialog-note">このページのスクリプトを簡略化したものです。<a href="https://github.com/shinshin86/mesh-avatar-studio/blob/main/site/src/main.ts">全文を GitHub で見る <span aria-hidden="true">↗</span></a></p>
+      </div>
+    </dialog>
   </body>
 </html>

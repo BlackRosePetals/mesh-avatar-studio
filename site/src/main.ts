@@ -33,6 +33,14 @@ for (const image of document.querySelectorAll<HTMLImageElement>('img[data-screen
 
 highlightCodeSamples();
 
+for (const opener of document.querySelectorAll<HTMLButtonElement>('[data-open-dialog]')) {
+  const dialog = document.getElementById(opener.dataset.openDialog!) as HTMLDialogElement;
+  opener.addEventListener('click', () => dialog.showModal());
+  dialog.querySelector('[data-close-dialog]')?.addEventListener('click', () => dialog.close());
+  // A click on the backdrop lands on the dialog element itself.
+  dialog.addEventListener('click', event => { if (event.target === dialog) dialog.close(); });
+}
+
 for (const button of document.querySelectorAll<HTMLButtonElement>('button[data-copy]')) {
   const code = document.getElementById(button.dataset.copy!)!;
   const feedback = document.getElementById(button.getAttribute('aria-describedby')!)!;
