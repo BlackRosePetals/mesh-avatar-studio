@@ -9,6 +9,25 @@ import { readAvatarFolder } from '../tools/avatar-files.mjs';
 const fromHere = (path: string) => fileURLToPath(new URL(path, import.meta.url));
 const base = '/mesh-avatar-studio/';
 const avatarFile = 'miko.mavatar';
+const publishedUrl = `https://shinshin86.github.io${base}`;
+
+function socialImage(): Plugin {
+  return {
+    name: 'site-social-image',
+    transformIndexHtml: {
+      order: 'post',
+      handler(html, context) {
+        if (context.server) {
+          return html.replaceAll('__SOCIAL_IMAGE__', `${base}@fs/${fromHere('../docs/images/en/01-overview.png')}`);
+        }
+        const image = Object.values(context.bundle ?? {}).find(asset =>
+          asset.type === 'asset' && asset.names.includes('01-overview.png'));
+        if (!image) throw new Error('The overview screenshot is missing from the site build.');
+        return html.replaceAll('__SOCIAL_IMAGE__', new URL(image.fileName, publishedUrl).href);
+      },
+    },
+  };
+}
 
 function sampleAvatar(): Plugin {
   const pack = () => packProjectAvatar(
@@ -50,13 +69,13 @@ export default defineConfig({
   root: fromHere('./'),
   base,
   publicDir: false,
-  plugins: [sampleAvatar()],
+  plugins: [sampleAvatar(), socialImage()],
   resolve: { alias: { 'mesh-avatar': fromHere('../packages/runtime/src/index.ts') } },
   server: {
     host: '127.0.0.1',
     fs: {
       // Only the packed avatar is served; raw sample and private project files stay local.
-      deny: ['.env', '.env.*', '*.{crt,pem}', '**/.git/**', '**/samples/**', '**/projects/**', '**/work/**', '**/_plan/**', '**/reference/**'],
+      deny: ['.env', '.env.*', '*.{crt,pem}', '**/.git/**', '**/samples/**', '**/projects/**', '**/work/**', '**/reference/**'],
     },
   },
   preview: { host: '127.0.0.1' },

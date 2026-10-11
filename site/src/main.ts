@@ -1,5 +1,51 @@
 import { LIVE_EXPRESSIONS, loadMeshAvatar, type LiveExpression, type MeshAvatar } from 'mesh-avatar';
+import { copy } from './messages';
+import overviewImage from '../../docs/images/en/01-overview.png';
+import handlesImage from '../../docs/images/en/02-edit-handles.png';
+import lipSyncImage from '../../docs/images/en/03-lip-sync.png';
+import variantsImage from '../../docs/images/en/05-variants.png';
+import liveImage from '../../docs/images/en/07-live.png';
+import streamImage from '../../docs/images/en/08-stream.png';
 import './style.css';
+
+const screenshots: Record<string, string> = {
+  overview: overviewImage, handles: handlesImage, lipSync: lipSyncImage,
+  variants: variantsImage, live: liveImage, stream: streamImage,
+};
+for (const image of document.querySelectorAll<HTMLImageElement>('img[data-screenshot]')) {
+  image.src = screenshots[image.dataset.screenshot!];
+  const link = image.closest('a');
+  if (link) link.href = image.src;
+}
+
+for (const button of document.querySelectorAll<HTMLButtonElement>('button[data-copy]')) {
+  const code = document.getElementById(button.dataset.copy!)!;
+  const feedback = document.getElementById(button.getAttribute('aria-describedby')!)!;
+  let resetTimer = 0;
+  button.disabled = false;
+  button.textContent = copy.copy;
+  button.addEventListener('click', async () => {
+    window.clearTimeout(resetTimer);
+    button.disabled = true;
+    button.textContent = copy.copy;
+    feedback.textContent = '';
+    try {
+      await navigator.clipboard.writeText(code.textContent ?? '');
+      button.textContent = copy.copied;
+      feedback.textContent = copy.copySucceeded;
+    } catch {
+      const selection = window.getSelection();
+      const range = document.createRange();
+      range.selectNodeContents(code);
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+      feedback.textContent = copy.copyFailed;
+    } finally {
+      button.disabled = false;
+      resetTimer = window.setTimeout(() => { button.textContent = copy.copy; }, 2500);
+    }
+  });
+}
 
 const hero = document.querySelector<HTMLElement>('.hero')!;
 const canvas = document.querySelector<HTMLCanvasElement>('#avatar')!;
@@ -26,7 +72,7 @@ const pointer = { active: false, x: 0, y: 0, smoothX: 0, smoothY: 0, weight: 0 }
 for (const name of shownExpressions.filter(name => LIVE_EXPRESSIONS.includes(name))) {
   const button = document.createElement('button');
   button.type = 'button';
-  button.textContent = name[0].toUpperCase() + name.slice(1);
+  button.textContent = copy.expressions[name];
   button.dataset.expression = name;
   button.setAttribute('aria-pressed', String(name === 'neutral'));
   button.addEventListener('click', () => {
@@ -39,14 +85,15 @@ for (const name of shownExpressions.filter(name => LIVE_EXPRESSIONS.includes(nam
 }
 
 function updateMotionPreference() {
+  avatar?.setAutoIdle(!reducedMotion.matches);
   avatar?.setAutoMotion(!reducedMotion.matches);
   avatar?.setSwayGain(reducedMotion.matches ? 0.35 : 1);
   pointer.active = false;
   pointer.weight = 0;
   avatar?.setParameters({});
   hint.textContent = reducedMotion.matches || !finePointer.matches
-    ? 'Pick an expression to try it.'
-    : 'Move your pointer to catch her eye.';
+    ? copy.expressionHint
+    : copy.pointerHint;
 }
 reducedMotion.addEventListener('change', updateMotionPreference);
 finePointer.addEventListener('change', updateMotionPreference);
@@ -130,10 +177,11 @@ window.addEventListener('pagehide', event => {
 window.addEventListener('pageshow', () => { pageVisible = true; updateLoop(); });
 
 async function start() {
-  status.textContent = 'Loading the live preview…';
+  status.textContent = copy.loading;
   canvas.dataset.state = 'loading';
   try {
-    const loaded = await loadMeshAvatar(canvas, `${import.meta.env.BASE_URL}miko.mavatar`, { manual: true });
+    // Hide the source image's cut top edge while leaving more of the hair visible.
+    const loaded = await loadMeshAvatar(canvas, `${import.meta.env.BASE_URL}miko.mavatar`, { manual: true, padTop: -0.04 });
     if (disposed) { loaded.destroy(); return; }
     avatar = loaded;
     avatar.setAutoIdle(true);
@@ -147,7 +195,7 @@ async function start() {
   } catch {
     canvas.dataset.state = 'error';
     stage.setAttribute('aria-busy', 'false');
-    status.textContent = 'The live preview couldn’t load. Try reloading in a browser with WebGL enabled. You can still explore the project on GitHub or npm.';
+    status.textContent = copy.loadFailed;
   }
 }
 
