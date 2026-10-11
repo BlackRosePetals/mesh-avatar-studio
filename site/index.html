@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Turn one illustration into an animated 2D avatar. Create and adjust it in Mesh Avatar Studio, then embed it in your app with the mesh-avatar runtime." />
+    <title>Mesh Avatar Studio — Your illustration, in motion</title>
+    <link rel="icon" href="data:," />
+    <script type="module" src="/src/main.ts"></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="site-header shell">
+      <a class="brand" href="./" aria-label="Mesh Avatar Studio home">
+        <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true" fill="none">
+          <path d="M5 7 16 3l11 4v18l-11 4-11-4V7Z M5 7l11 10L27 7M5 25l11-8 11 8M16 3v26" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" />
+        </svg>
+        <span>Mesh Avatar Studio</span>
+      </a>
+      <a class="header-link" href="https://github.com/shinshin86/mesh-avatar-studio">GitHub <span aria-hidden="true">↗</span></a>
+    </header>
+    <main id="main" class="shell">
+      <section class="hero" aria-labelledby="hero-title">
+        <div class="hero-copy">
+          <p class="eyebrow">Your illustration, in motion</p>
+          <h1 id="hero-title">Mesh Avatar<br />Studio</h1>
+          <p class="hero-pitch">Turn one illustration into an animated avatar.</p>
+          <p class="hero-description">Create and adjust it in Studio, then bring it to your app with the <span class="package-name">mesh-avatar</span> runtime.</p>
+          <div class="hero-actions">
+            <a class="button primary" href="https://github.com/shinshin86/mesh-avatar-studio">Get started on GitHub <span aria-hidden="true">↗</span></a>
+            <a class="button secondary" href="https://www.npmjs.com/package/mesh-avatar">Runtime on npm <span aria-hidden="true">↗</span></a>
+          </div>
+          <p class="hero-note">A local editor. An avatar you can embed.</p>
+        </div>
+        <figure class="demo">
+          <div class="demo-panel">
+            <div class="demo-heading">
+              <span class="demo-title">Live preview</span>
+              <span class="demo-character">Miko</span>
+            </div>
+            <div class="avatar-stage" aria-busy="true">
+              <canvas id="avatar" role="img" aria-label="Miko, an animated 2D avatar. Use the controls below to change her expression or try talking." width="960" height="960"></canvas>
+              <p id="avatar-status" class="avatar-status" role="status">Enable JavaScript to try the interactive preview.</p>
+            </div>
+            <div class="demo-controls">
+              <fieldset id="avatar-controls" disabled aria-describedby="demo-hint">
+                <legend class="sr-only">Avatar controls</legend>
+                <div id="expressions" class="expression-chips" role="group" aria-label="Expression"></div>
+                <div class="talk-row">
+                  <p id="demo-hint">Move your pointer to catch her eye.</p>
+                  <button id="talk" class="talk-toggle" type="button" aria-pressed="false" aria-describedby="talk-hint"><span class="talk-indicator" aria-hidden="true"></span>Talk</button>
+                </div>
+              </fieldset>
+              <p id="talk-hint" class="demo-note">Try talking — this demo has no audio.</p>
+            </div>
+          </div>
+          <figcaption>Running here with <a href="https://www.npmjs.com/package/mesh-avatar">mesh-avatar</a>.</figcaption>
+        </figure>
+      </section>
+    </main>
+    <footer class="site-footer shell">
+      <p>Miko © Yuki Shindo (AITuber OnAir). Used under the <a href="https://miko.aituberonair.com/#terms">Miko Character Usage Guidelines</a>.</p>
+      <p>This is not an official AITuber OnAir product.</p>
+    </footer>
+  </body>
+</html>

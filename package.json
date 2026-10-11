@@ -6,9 +6,12 @@
   "workspaces": ["packages/*"],
   "scripts": {
     "dev": "vite --host 127.0.0.1",
+    "dev:site": "vite --config site/vite.config.ts",
+    "build:site": "tsc -p site/tsconfig.json && vite build --config site/vite.config.ts",
+    "preview:site": "vite preview --config site/vite.config.ts",
     "screenshots": "node tools/capture-readme-screenshots.mjs",
     "test": "vitest run",
-    "lint": "eslint src tests e2e tools/*.mjs packages/runtime/src packages/runtime/tests packages/runtime/vite.config.ts packages/runtime/*.mjs",
+    "lint": "eslint src tests e2e tools/*.mjs packages/runtime/src packages/runtime/tests packages/runtime/vite.config.ts packages/runtime/*.mjs site/src site/vite.config.ts",
     "build": "tsc --noEmit && vite build",
     "build:runtime": "npm run build -w mesh-avatar",
     "changeset": "changeset",
