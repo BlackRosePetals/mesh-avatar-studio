@@ -109,17 +109,17 @@ h3 { margin: 0; font-size: 18px; font-weight: 650; line-height: 1.4; letter-spac
 .text-link { font-size: 14px; color: var(--accent); text-decoration: none; }
 .text-link:hover { text-decoration: underline; }
 .embed-code { display: grid; gap: 16px; min-width: 0; }
-.code-card { min-width: 0; overflow: hidden; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
-.code-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 56px; padding: 12px 18px; border-bottom: 1px solid var(--line); }
+.code-card { --code-bg: #1b2738; --code-line: #2e3d52; --code-ink: #e3e9f1; --code-muted: #93a3b8; min-width: 0; overflow: hidden; border: 1px solid var(--code-bg); border-radius: var(--radius); background: var(--code-bg); color: var(--code-ink); box-shadow: 0 8px 24px rgb(27 39 56 / 12%); }
+.code-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 56px; padding: 12px 18px; border-bottom: 1px solid var(--code-line); }
 .code-heading h3 { font-size: 13px; letter-spacing: 0; }
-.code-heading h3 span { margin-left: 8px; font-size: 11px; font-weight: 400; color: var(--muted); }
-.copy-button { flex-shrink: 0; padding: 6px 10px; min-width: 64px; min-height: 32px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--ink); font-size: 12px; cursor: pointer; }
-.copy-button:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+.code-heading h3 span { margin-left: 8px; font-size: 11px; font-weight: 400; color: var(--code-muted); }
+.copy-button { flex-shrink: 0; padding: 6px 10px; min-width: 64px; min-height: 32px; border: 1px solid var(--code-line); border-radius: 6px; background: transparent; color: var(--code-ink); font-size: 12px; cursor: pointer; }
+.copy-button:hover:not(:disabled) { border-color: #7aa2f7; color: #fff; }
 .copy-button:disabled { opacity: .5; cursor: default; }
 code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
 pre { margin: 0; padding: 20px 18px; overflow-x: auto; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; line-height: 1.8; tab-size: 2; }
-pre:focus-visible { outline: 2px solid var(--accent); outline-offset: -4px; }
-.copy-feedback { margin: 0; padding: 0 18px; color: var(--muted); font-size: 11px; line-height: 1.5; }
+pre:focus-visible { outline: 2px solid #7aa2f7; outline-offset: -4px; }
+.copy-feedback { margin: 0; padding: 0 18px; color: var(--code-muted); font-size: 11px; line-height: 1.5; }
 .copy-feedback:not(:empty) { padding-bottom: 12px; }
 .site-footer { padding-block: 40px; font-size: 12px; }
 .footer-top { display: flex; justify-content: space-between; align-items: start; gap: 24px; padding-bottom: 28px; }
