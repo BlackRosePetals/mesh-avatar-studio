@@ -9,7 +9,7 @@ import sys
 from pathlib import Path
 
 from agent_common import (
-    EYE_VARIANTS,
+    ALL_EYE_VARIANTS,
     MOUTH_VARIANTS,
     edit_masks,
     inside_repo,
@@ -23,6 +23,9 @@ CHANGES = {
     "eyes_closed": "Close both eyes naturally, using one clean upper lash line per eye. Remove all visible iris and eye white. Keep the eyebrows unchanged.",
     "eyes_half": "Draw both eyes half closed, with the upper lids halfway down. Keep the iris visible only below the upper lid and preserve the original gaze.",
     "eyes_smile": "Draw both eyes closed in a gentle smiling upward arc, with clean lashes and no visible iris or eye white. Keep the eyebrows unchanged.",
+    "eyes_angry": "Redraw both eyes as angry open eyes: the upper lids lowered into a narrowed glare that slants down toward the nose, with the upper part of each iris hidden under the lid and the gaze straight ahead. Keep each eye in place and the eyebrows unchanged; they are moved separately.",
+    "eyes_sad": "Redraw both eyes as sad open eyes: the upper lids drooping at the outer corners and raised toward the nose, softer and slightly moist, with the gaze a little downward. Do not draw tears on the cheeks. Keep each eye in place and the eyebrows unchanged; they are moved separately.",
+    "eyes_surprise": "Redraw both eyes as surprised wide-open eyes: the upper lids raised to show eye white above the iris, slightly smaller irises with clear highlights, and the gaze straight ahead. Keep each eye in place and the eyebrows unchanged; they are moved separately.",
     "mouth_a": "Open the mouth in the Japanese vowel あ (a): a natural vertically open mouth, with a subtle tongue and upper teeth.",
     "mouth_a_half": "Draw the Japanese vowel あ (a) at half openness: a smaller, gently open mouth.",
     "mouth_i": "Draw the Japanese vowel い (i): a wide, narrow open smile with subtle upper teeth.",
@@ -38,11 +41,11 @@ def generate(project):
     eyes, mouth = edit_masks(rig, image.size)
     output = project / "variant-requests"
     output.mkdir(exist_ok=True)
-    names = (*EYE_VARIANTS, *MOUTH_VARIANTS)
+    names = (*ALL_EYE_VARIANTS, *MOUTH_VARIANTS)
     for name in names:
         folder = output / name
         save_image(
-            rgba_mask((eyes[0] | eyes[1]) if name in EYE_VARIANTS else mouth),
+            rgba_mask((eyes[0] | eyes[1]) if name in ALL_EYE_VARIANTS else mouth),
             folder / "mask.png",
         )
         prompt = (
@@ -62,7 +65,8 @@ def generate(project):
         "# Drawn variant requests\n\n"
         f"Required output size: **{image.width} x {image.height}** pixels, RGBA PNG.\n\n"
         "For each variant below, supply `../source.png`, the variant's `mask.png`, and its "
-        "`prompt.md` to an image editor you trust. Transparent mask pixels may change; opaque "
+        "`prompt.md` to an image editor you trust. The expression eyes (`eyes_angry`, `eyes_sad`, "
+        "`eyes_surprise`) are optional; generate only the ones you want. Transparent mask pixels may change; opaque "
         "mask pixels must stay identical. Generating these files is a separate action: this "
         "command uploads nothing. If the image must stay local, use a local editor.\n\n"
         + "\n".join(

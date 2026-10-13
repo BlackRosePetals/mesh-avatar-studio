@@ -123,12 +123,20 @@ individually; readers must not require a complete set.
 | `eyes_closed_0`, `eyes_closed_1` | Closed eyes with relaxed lids. |
 | `eyes_half_0`, `eyes_half_1` | Half-open eyes. |
 | `eyes_smile_0`, `eyes_smile_1` | Closed eyes in a smile. |
+| `eyes_angry_0`, `eyes_angry_1` | Open eyes for the angry expression. |
+| `eyes_sad_0`, `eyes_sad_1` | Open eyes for the sad expression. |
+| `eyes_surprise_0`, `eyes_surprise_1` | Wide-open eyes for the surprised expression. |
 | `mouth_a` | Open mouth for “a”. |
 | `mouth_a_half` | Partly open “a”; also reused for “e”. |
 | `mouth_i` | Wide mouth for “i”. |
 | `mouth_o` | Rounded mouth for “o”; also reused, with reduced width, for “u”. |
 
 The eye suffix is the index in `rig.eyes`, not a separate left/right convention.
+The expression eyes replace the open and half-open eye while the live expression
+(`setExpression`: `angry`, `sad`, `surprise`) or the emotion tag (`setEmotion`: `angry`,
+`sad`, `surprised`) is active; a blink still switches to `eyes_closed`. They cover the
+same area as the other eye drawings and do not include the eyebrows, which the rig moves.
+Without them, those expressions use the other drawings as before.
 The original base drawing provides the closed mouth.
 
 ## Archive rules and compatibility

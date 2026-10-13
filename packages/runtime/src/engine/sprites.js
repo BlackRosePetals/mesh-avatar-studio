@@ -44,7 +44,10 @@ export function createSpriteModule(engine, rig) {
   // and the drawn closed / smiling eye.
   const EYE_OPEN_MIN = 0.75, EYE_CLOSED_MAX = 0.3, EYE_FADE_SEC = 0.06;
 
-  function eyeSprite(open, smile) {
+  // Open eyes drawn for an expression (eyes_angry / eyes_sad / eyes_surprise) replace the open
+  // and half-open eye while it lasts; a blink still switches to the closed drawing.
+  function eyeSprite(open, smile, mood = null) {
+    if (mood && open >= EYE_CLOSED_MAX) return mood;
     if (open >= EYE_OPEN_MIN) return null;
     if (open < EYE_CLOSED_MAX) return smile >= 0.5 ? 'eyes_smile' : 'eyes_closed';
     return 'eyes_half';
@@ -78,8 +81,9 @@ export function createSpriteModule(engine, rig) {
    */
   function createSprites(R, sheet, imgs, buildGrid, alphaOf) {
     const items = {};
-    // draw order matters for the cross-fades: half-closed under closed / smiling (the fade-in frame is drawn on top)
-    const order = n => (n.startsWith('eyes_half') ? 0 : n.startsWith('eyes_') ? 1 : 2);
+    // draw order matters for the cross-fades: half-closed and expression eyes under closed / smiling (the fade-in frame is drawn on top)
+    const shut = n => n.startsWith('eyes_closed') || n.startsWith('eyes_smile');
+    const order = n => (shut(n) ? 1 : n.startsWith('eyes_') ? 0 : 2);
     const entries = Object.entries(sheet.layers).sort((x, y) => order(x[0]) - order(y[0]));
     for (const [name, rect] of entries) {
       const mesh = buildGrid(rect, rig.mesh.spriteCell, alphaOf(imgs[name]), imgs[name].width);
@@ -117,8 +121,9 @@ export function createSpriteModule(engine, rig) {
       /**
        * Show / hide and deform the sprites for this frame.
        * Returns which eyes are covered by a sprite, so the layered eye parts can be hidden.
+       * `mood` (angry / sad / surprise) picks drawn expression eyes when the avatar has them.
        */
-      update(P, phys, dt = 1 / 60) {
+      update(P, phys, dt = 1 / 60, mood = null) {
         for (const it of Object.values(items)) it.layer.visible = false;
         const covered = [false, false];
         const eyes = [
@@ -129,7 +134,8 @@ export function createSpriteModule(engine, rig) {
         // EYE_FADE_SEC (a time-based cross-fade, so no double image is ever held)
         eyes.forEach(([open, smile], i) => {
           const st = eyeState[i];
-          const want = eyeSprite(open, smile) ?? 'open';
+          const drawn = mood && items[`eyes_${mood}_${i}`] ? `eyes_${mood}` : null;
+          const want = eyeSprite(open, smile, drawn) ?? 'open';
           if (want !== st.cur) { st.prev = st.cur; st.cur = want; st.t = 0; }
           // A redraw without elapsed time (a paused preview moving a slider) shows the target
           // frame at once; otherwise the fade would stay at its first frame.
@@ -145,9 +151,9 @@ export function createSpriteModule(engine, rig) {
           };
           // the outgoing frame stays fully drawn underneath while the new one fades in on top;
           // fading out to the open eye works the other way round
-          // whichever frame is drawn higher up (closed/smile above half, both above the open eye)
+          // whichever frame is drawn higher up (closed/smile above half or expression eyes, all above the open eye)
           // does the fading, the lower one stays solid, so the eye is never see-through
-          const rank = n => (n === 'open' ? -1 : n === 'eyes_half' ? 0 : 1);
+          const rank = n => (n === 'open' ? -1 : shut(n) ? 1 : 0);
           if (st.t >= 1) show(st.cur, 1);
           else if (rank(st.cur) > rank(st.prev)) { show(st.prev, 1); show(st.cur, k); }
           else { show(st.cur, 1); show(st.prev, 1 - k); }
@@ -170,4 +176,13 @@ export function createSpriteModule(engine, rig) {
     };
   }
   return { createSprites, mouthShape, eyeSprite };
+}
+
+// Expressions (live overlay names and motion expression keys) that have drawn open eyes.
+const EYE_MOODS = { angry: 'angry', angryTalk: 'angry', sad: 'sad', sadTalk: 'sad', surprise: 'surprise', surprisedTalk: 'surprise' };
+
+/** The drawn-eye mood for the live expression, else for the motion expression (if it is applied). */
+export function eyeMood(overlay, expression) {
+  if (overlay && overlay !== 'neutral') return EYE_MOODS[overlay] ?? null;
+  return (expression && EYE_MOODS[expression]) ?? null;
 }

@@ -101,7 +101,13 @@ export async function revealRepository() {
   const response = await fetch('/__studio/reveal', { method: 'POST' });
   if (!response.ok) throw new Error('Could not open repository.');
 }
-export const variantNames = ['eyes_closed', 'eyes_half', 'eyes_smile', 'mouth_a', 'mouth_a_half', 'mouth_i', 'mouth_o'] as const;
+export const variantGroups = {
+  eyes: ['eyes_closed', 'eyes_half', 'eyes_smile'],
+  expression: ['eyes_angry', 'eyes_sad', 'eyes_surprise'],
+  mouth: ['mouth_a', 'mouth_a_half', 'mouth_i', 'mouth_o'],
+} as const;
+export type VariantGroup = keyof typeof variantGroups;
+export const variantNames = [...variantGroups.eyes, ...variantGroups.expression, ...variantGroups.mouth] as const;
 export type VariantName = typeof variantNames[number];
 export interface VariantRequest { name: VariantName; prompt: string; maskUrl: string }
 export interface JobResult { path: string; log: string; requests?: VariantRequest[] }
@@ -112,7 +118,7 @@ export class ProjectJobError extends Error {
 export async function runProjectJob(project: LocalProject, action: ProjectJob, rig: Rig, files: File[] = []): Promise<JobResult> {
   let body: object = { rig };
   if (action === 'import-variants') {
-    if (!files.length || files.length > 7 || new Set(files.map(file => file.name)).size !== files.length || files.some(file => !variantNames.some(name => file.name === `${name}.png`) || file.size > 24 * 1024 * 1024) || files.reduce((sum, file) => sum + file.size, 0) > 26 * 1024 * 1024) throw new ProjectJobError('invalidImages');
+    if (!files.length || files.length > variantNames.length || new Set(files.map(file => file.name)).size !== files.length || files.some(file => !variantNames.some(name => file.name === `${name}.png`) || file.size > 24 * 1024 * 1024) || files.reduce((sum, file) => sum + file.size, 0) > 26 * 1024 * 1024) throw new ProjectJobError('invalidImages');
     body = { files: await Promise.all(files.map(file => new Promise<{ name: string; data: string }>((done, reject) => {
       const reader = new FileReader(); reader.onload = () => done({ name: file.name, data: String(reader.result).split(',')[1] }); reader.onerror = () => reject(new ProjectJobError('invalidImages')); reader.readAsDataURL(file);
     }))) };

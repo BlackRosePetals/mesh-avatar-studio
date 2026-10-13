@@ -2,12 +2,12 @@ import { useState } from 'react';
 import { readPreference, savePreference } from './preferences';
 import { useI18n } from './i18n';
 import { CopyButton } from './CopyButton';
-import { revealRepository } from './project';
+import { revealRepository, type VariantGroup } from './project';
 
-export function AskAgent({ rootPath, projectPath, target = 'both', newProject = false, readOnlySource }: {
-  rootPath?: string; projectPath?: string; target?: 'eyes' | 'mouth' | 'both'; newProject?: boolean; readOnlySource?: string;
+export function AskAgent({ rootPath, projectPath, target = ['eyes', 'mouth'], newProject = false, readOnlySource }: {
+  rootPath?: string; projectPath?: string; target?: VariantGroup[]; newProject?: boolean; readOnlySource?: string;
 }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [recipient, setRecipient] = useState(() => readPreference('mesh-avatar-agent-recipient') === 'claude' ? 'claude' : 'codex');
   const [revealError, setRevealError] = useState(false);
   const reveal = async () => {
@@ -16,7 +16,7 @@ export function AskAgent({ rootPath, projectPath, target = 'both', newProject = 
   };
   const agent = newProject || recipient === 'codex' ? 'Codex' : 'Claude Code';
   const path = projectPath ?? 'projects/my-avatar';
-  const prompt = (readOnlySource ? t.agentCopySample.replace('SOURCE', readOnlySource).replace('PROJECT', path) : '') + (newProject ? t.agentNewPrompt : recipient === 'codex' ? t.agentCodexPrompt : t.agentClaudePrompt).replace('PROJECT', path).replace('TARGET', target === 'eyes' ? t.agentEyes : target === 'mouth' ? t.agentMouth : t.agentBoth);
+  const prompt = (readOnlySource ? t.agentCopySample.replace('SOURCE', readOnlySource).replace('PROJECT', path) : '') + (newProject ? t.agentNewPrompt : recipient === 'codex' ? t.agentCodexPrompt : t.agentClaudePrompt).replace('PROJECT', path).replace('TARGET', new Intl.ListFormat(locale).format(target.map(group => ({ eyes: t.agentEyes, expression: t.agentExpression, mouth: t.agentMouth })[group])));
   return <section className="ask-agent" data-testid={newProject ? 'ask-agent-new' : 'ask-agent-variants'} aria-label={t.askAgent}>
     <p className="agent-instruction">{t.agentInstruction.replace('AGENT', agent)}</p>
     {rootPath ? <div className="agent-folder-actions"><CopyButton value={rootPath} label={t.copyFolderPath} /><button type="button" onClick={() => { void reveal(); }}>{t.showFolder}</button></div> : <p className="workflow-note">{t.rootUnavailable}</p>}

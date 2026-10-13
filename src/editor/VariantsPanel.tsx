@@ -1,20 +1,21 @@
 import { useEffect, useRef, useState } from 'react';
 import { useI18n } from './i18n';
-import { variantNames, projectVariantRequests, openSampleAvatar, ProjectJobError, type LocalProject, type ProjectJob, type JobResult, type VariantRequest } from './project';
+import { variantGroups, variantNames, projectVariantRequests, openSampleAvatar, ProjectJobError, type LocalProject, type ProjectJob, type VariantGroup, type JobResult, type VariantRequest } from './project';
 import { AskAgent } from './AskAgent';
 import { JobFeedback } from './JobFeedback';
 import { CopyButton } from './CopyButton';
 import { Icon } from './Icon';
 
-const labels = ['eyesClosed', 'eyesHalf', 'eyesSmile', 'mouthA', 'mouthAHalf', 'mouthI', 'mouthO'] as const;
+const labels = ['eyesClosed', 'eyesHalf', 'eyesSmile', 'eyesAngry', 'eyesSad', 'eyesSurprise', 'mouthA', 'mouthAHalf', 'mouthI', 'mouthO'] as const;
+const groupOf = (name: string) => (Object.keys(variantGroups) as VariantGroup[]).find(group => (variantGroups[group] as readonly string[]).includes(name));
 export function VariantsPanel({ project, projectPath, assets, rootPath, busy, stale, onRun, mouthRequest, onMouthPresence }: {
   project: LocalProject | null; projectPath?: string; assets?: Record<string, string>; rootPath?: string; busy: boolean; stale: boolean;
   onRun: (action: ProjectJob, files?: File[]) => Promise<JobResult>; mouthRequest: number; onMouthPresence: (present: boolean) => void;
 }) {
   const { t } = useI18n();
   const [present, setPresent] = useState<string[]>([]), [requests, setRequests] = useState<VariantRequest[]>([]);
-  const [eyes, setEyes] = useState(false), [mouth, setMouth] = useState(false);
-  const target = eyes && mouth ? 'both' : eyes ? 'eyes' : 'mouth';
+  const [eyes, setEyes] = useState(false), [expression, setExpression] = useState(false), [mouth, setMouth] = useState(false);
+  const target = ([['eyes', eyes], ['expression', expression], ['mouth', mouth]] as const).filter(([, on]) => on).map(([group]) => group);
   const panel = useRef<HTMLDetailsElement>(null), mouthCheckbox = useRef<HTMLInputElement>(null);
   useEffect(() => {
     if (!mouthRequest) return;
@@ -28,7 +29,7 @@ export function VariantsPanel({ project, projectPath, assets, rootPath, busy, st
   const writable = !!project && !project.readOnly;
   // Loading metadata for the current project must not reset choices made during loading.
   const identity = project?.relativePath ?? projectPath;
-  useEffect(() => { setEyes(false); setMouth(false); setError(null); setLog(''); setAccepted(false); setNotice(''); }, [identity]);
+  useEffect(() => { setEyes(false); setExpression(false); setMouth(false); setError(null); setLog(''); setAccepted(false); setNotice(''); }, [identity]);
   useEffect(() => {
     const revision = ++current.current;
     setPresent([]); setRequests([]);
@@ -51,23 +52,24 @@ export function VariantsPanel({ project, projectPath, assets, rootPath, busy, st
       setAccepted(action === 'import-variants');
     } catch (error) { setError(error instanceof ProjectJobError ? error : new ProjectJobError('toolFailed')); }
   };
-  const count = (prefix: string, total: number) => {
-    const value = present.filter(name => name.startsWith(prefix)).length;
-    return value ? t.variantCount.replace('COUNT', String(value)).replace('TOTAL', String(total)) : t.variantMissing;
+  const count = (group: VariantGroup) => {
+    const value = present.filter(name => groupOf(name) === group).length;
+    return value ? t.variantCount.replace('COUNT', String(value)).replace('TOTAL', String(variantGroups[group].length)) : t.variantMissing;
   };
   return <details ref={panel} className="panel variants-panel" data-testid="variants-panel" open>
     <summary><Icon name="brush" />{t.variantsTitle}</summary>
     <div className="variants-content"><p>{t.variantsHelp}</p>
       <div className="variant-choices">
-        <label><input type="checkbox" checked={eyes} onChange={event => setEyes(event.target.checked)} aria-label={t.targetEyes} /><span>{t.targetEyes}<small>{t.eyesKinds}</small></span><span className="variant-count">{count('eyes_', 3)}</span></label>
-        <label><input ref={mouthCheckbox} type="checkbox" checked={mouth} onChange={event => setMouth(event.target.checked)} aria-label={t.targetMouth} /><span>{t.targetMouth}<small>{t.mouthKinds}</small></span><span className="variant-count">{count('mouth_', 4)}</span></label>
+        <label><input type="checkbox" checked={eyes} onChange={event => setEyes(event.target.checked)} aria-label={t.targetEyes} /><span>{t.targetEyes}<small>{t.eyesKinds}</small></span><span className="variant-count">{count('eyes')}</span></label>
+        <label><input type="checkbox" checked={expression} onChange={event => setExpression(event.target.checked)} aria-label={t.targetExpression} /><span>{t.targetExpression}<small>{t.expressionKinds}</small></span><span className="variant-count">{count('expression')}</span></label>
+        <label><input ref={mouthCheckbox} type="checkbox" checked={mouth} onChange={event => setMouth(event.target.checked)} aria-label={t.targetMouth} /><span>{t.targetMouth}<small>{t.mouthKinds}</small></span><span className="variant-count">{count('mouth')}</span></label>
       </div>
-      {(eyes || mouth) && projectPath && (projectPath.startsWith('<') ? <p className="workflow-note">{t.agentUnknownPath}</p> : <AskAgent rootPath={rootPath} projectPath={project?.readOnly || projectPath === 'samples/miko-qipao' ? 'projects/miko-qipao-variants' : projectPath} readOnlySource={project?.readOnly || projectPath === 'samples/miko-qipao' ? projectPath : undefined} target={target} />)}
+      {target.length > 0 && projectPath && (projectPath.startsWith('<') ? <p className="workflow-note">{t.agentUnknownPath}</p> : <AskAgent rootPath={rootPath} projectPath={project?.readOnly || projectPath === 'samples/miko-qipao' ? 'projects/miko-qipao-variants' : projectPath} readOnlySource={project?.readOnly || projectPath === 'samples/miko-qipao' ? projectPath : undefined} target={target} />)}
       <details className="manual-variants"><summary>{t.manualVariants}</summary>
         <p>{t.manualHelp}</p>
         {writable ? <button disabled={busy || stale} onClick={() => { void run('variant-requests'); }}>{busy ? t.operationBusy : t.createRequests}</button> : <p className="workflow-note">{t.variantsUnavailable}</p>}
         {stale && <p className="workflow-note">{t.variantsNeedRebuild}</p>}
-      {requests.length > 0 && <div className="variant-requests">{requests.filter(request => (!eyes && !mouth) || target === 'both' || request.name.startsWith(target === 'eyes' ? 'eyes_' : 'mouth_')).map(request => <details key={request.name}>
+      {requests.length > 0 && <div className="variant-requests">{requests.filter(request => !target.length || target.includes(groupOf(request.name)!)).map(request => <details key={request.name}>
         <summary>{t[labels[variantNames.indexOf(request.name)]]} · <code>{request.name}.png</code></summary>
         <img src={request.maskUrl} alt={`${t.requestFiles}: ${t[labels[variantNames.indexOf(request.name)]]}`} />
         <p><code>{project?.relativePath}/source.png</code><br /><code>{project?.relativePath}/variant-requests/{request.name}/mask.png</code></p>

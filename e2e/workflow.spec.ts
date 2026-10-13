@@ -71,7 +71,7 @@ test('a failed build leaves the previous layers and view, with a useful reason a
 });
 test('requests provide masks, root handoff and prompts; drops accept valid drawings and reject outside changes atomically', async ({ page, context }) => {
   test.setTimeout(120000); await context.grantPermissions(['clipboard-read', 'clipboard-write']); await open(page);
-  const panel = page.getByTestId('variants-panel'); await expect(panel.getByRole('checkbox')).toHaveCount(2);
+  const panel = page.getByTestId('variants-panel'); await expect(panel.getByRole('checkbox')).toHaveCount(3);
   await expect(panel.getByTestId('ask-agent-variants')).toHaveCount(0);
   await expect(panel.locator('.manual-variants')).not.toHaveAttribute('open', '');
   await panel.getByRole('checkbox', { name: 'Mouth', exact: true }).check();
@@ -133,6 +133,9 @@ test('eye and mouth checkboxes immediately adapt the prompt and lip fallback ope
   const prompt = panel.getByRole('textbox', { name: 'Copy message', exact: true });
   await panel.getByRole('checkbox', { name: 'Eyes', exact: true }).check(); await expect(prompt).toContainText('eye drawn variants');
   await panel.getByRole('checkbox', { name: 'Mouth', exact: true }).check(); await expect(prompt).toContainText('eye and mouth drawn variants');
+  await panel.getByRole('checkbox', { name: 'Expression eyes', exact: true }).check();
+  await expect(prompt).toContainText('eye, expression eye (angry, sad, surprised) and mouth drawn variants');
+  await panel.getByRole('checkbox', { name: 'Expression eyes', exact: true }).uncheck();
   await panel.getByRole('checkbox', { name: 'Eyes', exact: true }).uncheck(); await expect(prompt).toContainText('mouth drawn variants');
   await panel.getByRole('checkbox', { name: 'Mouth', exact: true }).uncheck(); await expect(prompt).toHaveCount(0);
   await panel.locator(':scope > summary').click();

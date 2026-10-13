@@ -13,6 +13,8 @@ const poses = [
   ['look-up', { angleY: 15 }], ['look-down', { angleY: -15 }],
   ['tilt-left', { angleZ: -15 }], ['tilt-right', { angleZ: 15 }],
   ['body-left', { bodyAngleZ: -8 }], ['body-right', { bodyAngleZ: 8 }],
+  // live expressions; they show the drawn expression eyes when the avatar has them
+  ['angry', {}, 'angry'], ['sad', {}, 'sad'], ['surprise', {}, 'surprise'],
 ];
 
 async function main() {
@@ -81,9 +83,11 @@ async function main() {
         av.setAutoIdle(false); av.setAutoMotion(false); av.setParameters(defaults);
         return av;
       }
-      for (const [name, values] of poses) {
+      for (const [name, values, expression] of poses) {
         const av = await avatar();
-        av.setParameters({ ...defaults, ...values }); av.advance(1, 60);
+        av.setParameters({ ...defaults, ...values });
+        if (expression) av.setExpression(expression);
+        av.advance(1, 60);
         pictures.push([name, canvas.toDataURL()]); av.destroy();
       }
       const av = await avatar();
@@ -135,7 +139,7 @@ async function main() {
     if (relative(project, await realpath(review)).startsWith('..')) throw new Error('review folder must stay inside the project');
     for (const [name, url] of result.images) await writeFile(resolve(review, `${name}.png`), Buffer.from(url.split(',')[1], 'base64'));
     const { images, ...metadata } = result;
-    await writeFile(resolve(review, 'poses.json'), JSON.stringify({ ...metadata, project: basename(project), fixedFps: 60, poseSeconds: 1, poses: poses.map(([name, parameters]) => ({ name, parameters })), hairFrames: 6, files: images.map(([name]) => `${name}.png`) }, null, 2) + '\n');
+    await writeFile(resolve(review, 'poses.json'), JSON.stringify({ ...metadata, project: basename(project), fixedFps: 60, poseSeconds: 1, poses: poses.map(([name, parameters, expression]) => ({ name, parameters, ...(expression && { expression }) })), hairFrames: 6, files: images.map(([name]) => `${name}.png`) }, null, 2) + '\n');
     console.log(`Rendered ${poses.length + 6} poses, eye/mouth crops and contact-sheet.png in ${relative(root, review)}/`);
   } finally {
     await browser?.close();

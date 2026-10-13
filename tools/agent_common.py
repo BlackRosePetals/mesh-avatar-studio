@@ -109,6 +109,9 @@ def grid_image(image, region=None, step=50):
 
 
 EYE_VARIANTS = ("eyes_closed", "eyes_half", "eyes_smile")
+# Open eyes drawn for an expression; the brows stay outside the mask (the runtime moves them).
+EXPRESSION_EYE_VARIANTS = ("eyes_angry", "eyes_sad", "eyes_surprise")
+ALL_EYE_VARIANTS = (*EYE_VARIANTS, *EXPRESSION_EYE_VARIANTS)
 MOUTH_VARIANTS = ("mouth_a", "mouth_a_half", "mouth_i", "mouth_o")
 
 
