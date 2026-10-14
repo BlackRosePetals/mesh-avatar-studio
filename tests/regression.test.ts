@@ -48,6 +48,7 @@ function alphaOf(image: PNG) {
   return Uint8Array.from({ length: image.width * image.height }, (_, i) => image.data[i * 4 + 3]);
 }
 type Mesh = ReturnType<typeof referenceGrid>;
+const EXPRESSION_SPRITE = /^(eyes_(sad|surprise)_\d|mouth_(angry|sad))$/;
 const samplePaths = ['source.png', 'built/base.png', 'built/hairmask.png',
   ...Object.keys(metadata.layers).map(name => `built/${name}.png`),
   ...Object.keys(sheet.layers).map(name => `built/sprites/${name}.png`)];
@@ -159,8 +160,50 @@ test.skipIf(!samplePresent)('all drawn eye and mouth sprite meshes match referen
       }
     }
   }
-  expect(seen.size).toBe(Object.keys(sheet.layers).length);
+  // Expression drawings are only shown with an expression (checked below).
+  expect(seen.size).toBe(Object.keys(sheet.layers).filter(name => !EXPRESSION_SPRITE.test(name)).length);
   console.log(`Sprite regression: ${seen.size} layers, max delta ${maximum} px`);
+  expect(maximum).toBeLessThan(0.01);
+}, 120000);
+
+// The reference predates expression drawings. Each one is placed like an existing drawing at
+// full size: drawn eyes like the half-closed eye, closed mouths like an open mouth at the
+// openness its drawing was made for. Hand the reference the expression drawing under that
+// name and compare the meshes.
+test.skipIf(!samplePresent)('drawn expression eyes and mouths match the reference placement of the drawing they stand in for', () => {
+  const expressions = Object.keys(sheet.layers).filter(name => EXPRESSION_SPRITE.test(name));
+  expect(expressions.length).toBeGreaterThan(0);
+  type Item = { mesh: Mesh; visible: boolean };
+  type Sprites = { update(P: Record<string, number>, physics: typeof fixedPhysics, dt: number, mood?: string): unknown };
+  type Creator = (renderer: { addLayer(name: string, image: PNG, mesh: Mesh): Item }, metadata: { build: string; layers: Record<string, number[]> },
+    images: Record<string, PNG>, grid: GridBuilder, alpha: typeof alphaOf) => Sprites;
+  const capture = () => {
+    const items = new Map<string, Item>();
+    return { items, addLayer(name: string, _image: PNG, mesh: Mesh) { const item = { mesh, visible: true }; items.set(name, item); return item; } };
+  };
+  const makeSprites = createSpriteModule(engine, rig).createSprites as unknown as Creator;
+  const makeReference = rawReferenceSprites as unknown as Creator;
+  let maximum = 0;
+  for (const name of expressions) {
+    const eye = /_(\d)$/.exec(name)?.[1];
+    const mood = name.replace(/^(eyes|mouth)_/, '').replace(/_\d$/, '');
+    const stand = eye === undefined ? 'mouth_a' : `eyes_half_${eye}`;
+    const only = (n: string) => ({ ...sheet, layers: { [n]: sheet.layers[name as keyof typeof sheet.layers] } });
+    const image = load(name, true);
+    const ours = capture(), theirs = capture();
+    const current = makeSprites(ours, only(name), { [name]: image }, buildGrid, alphaOf);
+    const old = makeReference(theirs, only(stand), { [stand]: image }, referenceGrid, alphaOf);
+    for (const pose of poses) {
+      // half-closed eye / an "a" mouth open exactly as far as its drawing (no squash)
+      const P = { ...defaults, ...pose, eyeLOpen: 0.5, eyeROpen: 0.5, eyeSmile: 0, mouthForm: 0, mouthOpen: 0.9 };
+      current.update(P, fixedPhysics, 0.1, mood);
+      old.update(P, fixedPhysics, 0.1);
+      const a = ours.items.get(name)!, b = theirs.items.get(stand)!;
+      expect(a.visible).toBe(true); expect(b.visible).toBe(true);
+      for (let i = 0; i < a.mesh.pos.length; i++) maximum = Math.max(maximum, Math.abs(a.mesh.pos[i] - b.mesh.pos[i]));
+    }
+  }
+  console.log(`Expression sprite regression: ${expressions.length} layers, max delta ${maximum} px`);
   expect(maximum).toBeLessThan(0.01);
 }, 120000);
 

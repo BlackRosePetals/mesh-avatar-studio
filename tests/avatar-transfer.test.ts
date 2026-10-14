@@ -1,4 +1,4 @@
-import { afterEach, beforeAll, beforeEach, expect, test } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, expect, test, vi } from 'vitest';
 import { mkdir, mkdtemp, readFile, readdir, rm, symlink, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { Readable } from 'node:stream';
@@ -13,6 +13,9 @@ let root: string;
 let fixture: Record<string, Uint8Array>;
 let sharedArchive: Uint8Array;
 beforeAll(async () => {
+  // Archives store each entry's time (2 s resolution); a fixed clock keeps byte comparisons
+  // from failing when the packs fall on both sides of a tick.
+  vi.useFakeTimers({ toFake: ['Date'], now: new Date('2026-01-01T00:00:00Z') });
   fixture = sampleFiles();
   sharedArchive = await packProjectAvatar(async names => Object.fromEntries([...names].filter(name => fixture[name]).map(name => [name, fixture[name]])), { name: 'sample-miko-qipao' });
 });
@@ -25,6 +28,7 @@ beforeEach(async () => {
   }
 });
 afterEach(async () => { await rm(root, { recursive: true, force: true }); });
+afterAll(() => { vi.useRealTimers(); });
 async function call(path: string, data?: unknown, headers: Record<string, string> = {}) {
   const raw = data instanceof Uint8Array;
   const request = Readable.from(data === undefined ? [] : [raw ? Buffer.from(data) : Buffer.from(JSON.stringify(data))]) as IncomingMessage;
