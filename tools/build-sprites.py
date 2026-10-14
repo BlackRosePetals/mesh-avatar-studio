@@ -80,6 +80,9 @@ RING_LEVEL = 48
 # patch. The tint is measured just inside the mask edge, where the skin should be unchanged.
 TINT_BAND = 10
 MAX_TINT = 24
+# Pixels compared for those checks. Some illustrations are exported with the skin slightly
+# below full alpha (253 in the sample), so "opaque" cannot mean exactly 255.
+OPAQUE_ALPHA = 240
 
 
 def grey(image):
@@ -91,7 +94,7 @@ def grey(image):
 
 def mask_only(name, variant, source, region):
     """Return the variant aligned to the source, or raise with the reason it differs."""
-    opaque = source[..., 3] == 255
+    opaque = source[..., 3] >= OPAQUE_ALPHA
     (dx, dy), response = cv2.phaseCorrelate(
         grey(source), grey(variant), cv2.createHanningWindow(source.shape[1::-1], cv2.CV_32F)
     )

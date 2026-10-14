@@ -180,6 +180,8 @@ class AgentToolsTest(unittest.TestCase):
         texture = rng.integers(60, 200, (100, 100, 3), dtype=np.uint8)
         source = np.dstack([texture, np.full((100, 100), 255, np.uint8)])
         source[:, :6, 3] = 0
+        # Skin a little below full alpha, as some illustrations are exported.
+        source[:, 6:, 3] = 253
         Image.fromarray(source).save(self.project / "source.png")
         variants = self.project / "variants"
         variants.mkdir()
@@ -209,7 +211,7 @@ class AgentToolsTest(unittest.TestCase):
         x, y, w, h = json.loads((self.project / "built/sprites/sprites.json").read_text())["layers"]["eyes_sad_0"]
         with Image.open(self.project / "built/sprites/eyes_sad_0.png") as image:
             sprite = np.array(image.convert("RGBA")).astype(int)
-        solid = sprite[..., 3] == 255
+        solid = sprite[..., 3] >= 250
         solid[25 - y : 36 - y, 15 - x : 26 - x] = False
         self.assertTrue(solid.any())
         self.assertLess(np.abs(sprite[..., :3] - source[y : y + h, x : x + w, :3])[solid].mean(), 1)
