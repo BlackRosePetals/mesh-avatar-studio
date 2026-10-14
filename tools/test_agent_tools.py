@@ -126,7 +126,19 @@ class AgentToolsTest(unittest.TestCase):
         result = self.cli("variant-requests", self.project)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(
-            len(list((self.project / "variant-requests").glob("*/mask.png"))), 7
+            len(list((self.project / "variant-requests").glob("*/mask.png"))), 11
+        )
+        self.assertEqual(
+            (self.project / "variant-requests/mouth_angry/mask.png").read_bytes(),
+            (self.project / "variant-requests/mouth_a/mask.png").read_bytes(),
+        )
+        self.assertEqual(
+            (self.project / "variant-requests/eyes_sad/mask.png").read_bytes(),
+            (self.project / "variant-requests/eyes_closed/mask.png").read_bytes(),
+        )
+        self.assertIn(
+            "eyebrows unchanged",
+            (self.project / "variant-requests/eyes_sad/prompt.md").read_text(),
         )
         self.assertEqual(self.cli("build-sprites", self.project).returncode, 0)
         self.assertFalse((self.project / "built").exists())
@@ -148,16 +160,77 @@ class AgentToolsTest(unittest.TestCase):
         self.assertEqual(json.loads(before)["version"], 1)
         self.assertEqual(list(json.loads(before)), ["build", "layers", "version"])
         self.assertEqual(json.loads(before)["layers"]["mouth_a"][2] > 0, True)
-        invalid = valid.copy()
-        invalid.putpixel((0, 0), (0, 0, 0, 255))
-        invalid.save(path)
-        with self.assertRaisesRegex(ValueError, "outside-mask"):
+        spill = valid.copy()
+        for x in range(30, 70):
+            for y in range(52, 78):
+                spill.putpixel((x, y), (0, 0, 0, 255))
+        spill.save(path)
+        with self.assertRaisesRegex(ValueError, "outside-mask changes: the drawing spills"):
             sprites.build(self.project)
         self.assertEqual(metadata.read_bytes(), before)
         Image.new("RGBA", (99, 100)).save(path)
         with self.assertRaisesRegex(ValueError, "size"):
             sprites.build(self.project)
         self.assertEqual(metadata.read_bytes(), before)
+
+    def test_reencoded_or_shifted_drawings_import_only_the_mask_area(self):
+        import numpy as np
+
+        rng = np.random.default_rng(1)
+        texture = rng.integers(60, 200, (100, 100, 3), dtype=np.uint8)
+        source = np.dstack([texture, np.full((100, 100), 255, np.uint8)])
+        source[:, :6, 3] = 0
+        # Skin a little below full alpha, as some illustrations are exported.
+        source[:, 6:, 3] = 253
+        Image.fromarray(source).save(self.project / "source.png")
+        variants = self.project / "variants"
+        variants.mkdir()
+        path = variants / "eyes_sad.png"
+
+        def save(image):
+            Image.fromarray(image).save(path)
+
+        drawn = source.copy()
+        drawn[25:36, 15:26, :3] = 20
+        # Re-encoded: small noise everywhere, the transparent edge filled in.
+        noisy = drawn.astype(int) + rng.integers(-12, 13, drawn.shape)
+        noisy[..., 3] = 255
+        save(np.clip(noisy, 0, 255).astype(np.uint8))
+        sprites.build(self.project)
+        layers = json.loads((self.project / "built/sprites/sprites.json").read_text())["layers"]
+        self.assertEqual(sorted(layers), ["eyes_sad_0", "eyes_sad_1"])
+        with Image.open(self.project / "built/sprites/eyes_sad_0.png") as image:
+            x, y = layers["eyes_sad_0"][:2]
+            self.assertLess(image.getpixel((20 - x, 30 - y))[0], 40)
+        # A uniform tint is measured at the mask edge and removed, so the skin matches.
+        tinted = drawn.astype(int)
+        tinted[..., :3] -= 8
+        tinted[..., 3] = 255
+        save(np.clip(tinted, 0, 255).astype(np.uint8))
+        sprites.build(self.project)
+        x, y, w, h = json.loads((self.project / "built/sprites/sprites.json").read_text())["layers"]["eyes_sad_0"]
+        with Image.open(self.project / "built/sprites/eyes_sad_0.png") as image:
+            sprite = np.array(image.convert("RGBA")).astype(int)
+        solid = sprite[..., 3] >= 250
+        solid[25 - y : 36 - y, 15 - x : 26 - x] = False
+        self.assertTrue(solid.any())
+        self.assertLess(np.abs(sprite[..., :3] - source[y : y + h, x : x + w, :3])[solid].mean(), 1)
+        # A one-pixel shift is corrected; a uniformly scaled image is resized.
+        save(np.roll(drawn, 1, axis=1))
+        sprites.build(self.project)
+        Image.fromarray(drawn).resize((200, 200), Image.Resampling.NEAREST).save(path)
+        sprites.build(self.project)
+        save(np.roll(drawn, 6, axis=1))
+        with self.assertRaisesRegex(ValueError, "shifted by"):
+            sprites.build(self.project)
+        redrawn = drawn.copy()
+        redrawn[..., :3] = 255 - redrawn[..., :3]
+        save(redrawn)
+        with self.assertRaisesRegex(ValueError, "outside-mask changes"):
+            sprites.build(self.project)
+        Image.fromarray(drawn).resize((100, 120)).save(path)
+        with self.assertRaisesRegex(ValueError, "aspect ratio"):
+            sprites.build(self.project)
 
 
 def module_cleanup(path):

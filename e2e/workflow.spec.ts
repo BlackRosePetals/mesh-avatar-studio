@@ -71,7 +71,7 @@ test('a failed build leaves the previous layers and view, with a useful reason a
 });
 test('requests provide masks, root handoff and prompts; drops accept valid drawings and reject outside changes atomically', async ({ page, context }) => {
   test.setTimeout(120000); await context.grantPermissions(['clipboard-read', 'clipboard-write']); await open(page);
-  const panel = page.getByTestId('variants-panel'); await expect(panel.getByRole('checkbox')).toHaveCount(2);
+  const panel = page.getByTestId('variants-panel'); await expect(panel.getByRole('checkbox')).toHaveCount(3);
   await expect(panel.getByTestId('ask-agent-variants')).toHaveCount(0);
   await expect(panel.locator('.manual-variants')).not.toHaveAttribute('open', '');
   await panel.getByRole('checkbox', { name: 'Mouth', exact: true }).check();
@@ -106,7 +106,8 @@ test('requests provide masks, root handoff and prompts; drops accept valid drawi
   await expect(page.getByTestId('preview-status')).toHaveAttribute('data-state', 'ready'); await page.waitForTimeout(300);
   expect(await pixels(page)).not.toBe(before);
   const savedVariant = await readFile(join(directory, 'variants/mouth_a.png')), savedManifest = await readFile(join(directory, 'built/sprites/sprites.json'));
-  for (let index = 0; index < source.data.length; index += 4) if (source.data[index + 3] === 255) source.data.set([255, 255, 255, 255], index);
+  // Redraw the whole picture (the sample's skin is not fully opaque, so test every visible pixel).
+  for (let index = 0; index < source.data.length; index += 4) if (source.data[index + 3] > 0) source.data.set([255, 255, 255, 255], index);
   await drop(page, PNG.sync.write(source), 'mouth_a.png');
   await expect(panel.getByRole('alert')).toContainText('Pixels outside the edit mask changed.', { timeout: 60000 });
   expect(await readFile(join(directory, 'variants/mouth_a.png'))).toEqual(savedVariant); expect(await readFile(join(directory, 'built/sprites/sprites.json'))).toEqual(savedManifest);
@@ -133,6 +134,9 @@ test('eye and mouth checkboxes immediately adapt the prompt and lip fallback ope
   const prompt = panel.getByRole('textbox', { name: 'Copy message', exact: true });
   await panel.getByRole('checkbox', { name: 'Eyes', exact: true }).check(); await expect(prompt).toContainText('eye drawn variants');
   await panel.getByRole('checkbox', { name: 'Mouth', exact: true }).check(); await expect(prompt).toContainText('eye and mouth drawn variants');
+  await panel.getByRole('checkbox', { name: 'Expressions', exact: true }).check();
+  await expect(prompt).toContainText('eye, expression (sad and surprised eyes, angry and sad closed mouths) and mouth drawn variants');
+  await panel.getByRole('checkbox', { name: 'Expressions', exact: true }).uncheck();
   await panel.getByRole('checkbox', { name: 'Eyes', exact: true }).uncheck(); await expect(prompt).toContainText('mouth drawn variants');
   await panel.getByRole('checkbox', { name: 'Mouth', exact: true }).uncheck(); await expect(prompt).toHaveCount(0);
   await panel.locator(':scope > summary').click();

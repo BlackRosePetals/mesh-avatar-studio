@@ -131,8 +131,9 @@ npm run render-poses -- projects/<name>
 ```
 
 This renders the avatar in fixed poses (rest, half and closed eyes, mouth open, turn left and
-right, look up and down, tilt, body tilt, and a hair sway sequence) into
-`projects/<name>/review/`, with a contact sheet and zoomed eye and mouth crops.
+right, look up and down, tilt, body tilt, the angry, sad and surprised expressions, and a hair
+sway sequence) into `projects/<name>/review/`, with a contact sheet and zoomed eye and mouth
+crops.
 
 Look at every frame. Pass when:
 - closed eyes are fully closed, with one clean lash line and no leftover iris or white;
@@ -150,7 +151,7 @@ Without drawn variants, a closed eye can keep faint fragments of the original up
 crease above the closed line. If iris and white are gone and only such faint lines remain,
 the rig is good enough: continue to Step 6, which removes them.
 
-## Step 6 — Drawn variants (closed eyes, mouth shapes)
+## Step 6 — Drawn variants (closed eyes, mouth shapes, expression eyes)
 
 Codex uses its built-in image generation (imagegen) for these variants.
 
@@ -161,7 +162,14 @@ uv run tools/variant-requests.py projects/<name>
 ```
 
 This writes `projects/<name>/variant-requests/` with, for each variant (closed / half /
-smiling eyes; mouths あ, half あ, い, お): an edit mask, the prompt, and a README.
+smiling eyes; mouths あ, half あ, い, お; sad / surprised expression eyes; angry / sad closed
+mouths): an edit mask, the prompt, and a README.
+
+The expression eyes (`eyes_sad`, `eyes_surprise`) and closed mouths (`mouth_angry`,
+`mouth_sad`) are optional; create them only when the person asks for them. The eyes use the
+eye mask, which leaves the eyebrows out: the rig already moves the brows for each expression,
+and a drawn brow would show twice. The mouths use the mouth mask and stay closed. The angry
+and half-lidded expressions use `eyes_half`, so they need no separate eye drawing.
 
 Ask the person before generating: image generation sends `source.png` and a mask to the
 generator. If they decline, stop here; the avatar still works without variants.
@@ -173,16 +181,22 @@ generator. If they decline, stop here; the avatar still works without variants.
   and where to put the results. Continue when they say the files are in place.
 
 In each mask, transparent pixels may change and opaque pixels must stay identical. Many
-generators recompress or shift the whole image; if a variant is rejected for changes outside
-the mask, generate it again, asking explicitly for identical size and untouched pixels outside
-the masked area.
+generators recompress the whole image, fill in the transparent background or shift it by a
+pixel. `build-sprites` then imports the masked area only: it corrects a shift of up to 3 px,
+resizes a result with the source's aspect ratio, removes a uniform colour tint measured just
+inside the mask edge (on flat skin it would show as a patch), and logs `importing the mask
+area only`. It
+still rejects, with the reason, a result whose whole image is shifted further, whose picture
+outside the mask was redrawn, whose drawing spills over the mask edge, or whose aspect ratio
+differs. Generate a rejected variant again, asking for identical size and untouched pixels
+outside the masked area.
 
 Then:
 ```sh
 uv run tools/build-sprites.py projects/<name>
 ```
-It rejects variants whose size differs from the source or that change pixels outside the
-mask, and cuts accepted variants into `built/sprites/`. Render the poses again (Step 5).
+It cuts accepted variants into `built/sprites/`. Render the poses again (Step 5); the
+`angry`, `sad` and `surprise` frames show the expression eyes and mouths.
 
 ## Step 7 — Hand over
 

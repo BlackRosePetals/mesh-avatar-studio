@@ -3,7 +3,7 @@ import { execFile } from 'node:child_process';
 import { copyFile, lstat, mkdir, mkdtemp, readdir, readFile, realpath, rename, rm, writeFile } from 'node:fs/promises';
 import { join, resolve, relative, dirname } from 'node:path';
 
-export const VARIANTS = ['eyes_closed', 'eyes_half', 'eyes_smile', 'mouth_a', 'mouth_a_half', 'mouth_i', 'mouth_o'] as const;
+export const VARIANTS = ['eyes_closed', 'eyes_half', 'eyes_smile', 'eyes_sad', 'eyes_surprise', 'mouth_a', 'mouth_a_half', 'mouth_i', 'mouth_o', 'mouth_angry', 'mouth_sad'] as const;
 export type Tool = 'build-layers' | 'variant-requests' | 'build-sprites';
 export class JobError extends Error {
   constructor(public code: 'dependencies' | 'toolFailed' | 'unsafeFiles', public log: string) { super(code); }
@@ -59,10 +59,10 @@ async function publish(project: string, stage: string, names: string[]) {
 export interface VariantInput { name: string; data: string }
 export function decodeVariants(value: unknown): { name: string; bytes: Buffer }[] {
   const files = (value as { files?: VariantInput[] })?.files;
-  if (!Array.isArray(files) || !files.length || files.length > VARIANTS.length) throw new Error('Choose one to seven named PNG files.');
+  if (!Array.isArray(files) || !files.length || files.length > VARIANTS.length) throw new Error(`Choose one to ${VARIANTS.length} named PNG files.`);
   const names = new Set<string>();
   return files.map(file => {
-    if (!file || !VARIANTS.some(name => file.name === `${name}.png`) || names.has(file.name) || typeof file.data !== 'string' || !/^[A-Za-z0-9+/]+={0,2}$/.test(file.data)) throw new Error('Use the seven variant filenames and PNG images.');
+    if (!file || !VARIANTS.some(name => file.name === `${name}.png`) || names.has(file.name) || typeof file.data !== 'string' || !/^[A-Za-z0-9+/]+={0,2}$/.test(file.data)) throw new Error('Use the variant filenames and PNG images.');
     names.add(file.name);
     const bytes = Buffer.from(file.data, 'base64');
     if (bytes.length > 24 * 1024 * 1024 || !bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))) throw new Error('Use PNG images smaller than 24 MB each.');

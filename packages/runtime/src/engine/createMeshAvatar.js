@@ -4,7 +4,7 @@
 import { createRig } from './rig.js';
 import { createRenderer } from './renderer.js';
 import { createPhysics } from './physics.js';
-import { createSpriteModule } from './sprites.js';
+import { createSpriteModule, eyeMood } from './sprites.js';
 import { Motion } from './motion.js';
 import { ExpressionOverlay } from './expression-overlay.js';
 import { MOTIONS, IDLE_MOTIONS } from './motions.js';
@@ -182,7 +182,8 @@ export async function createMeshAvatarImpl(canvas, options) {
         o[k * 2] = tmp[0]; o[k * 2 + 1] = tmp[1];
       }
     }
-    const cover = sprites?.update(P, phys, dt);
+    // the motion expression is not applied in manual mode, so only the live one counts there
+    const cover = sprites?.update(P, phys, dt, eyeMood(expression.name, motion.mode === 'manual' ? null : motion.expr));
     if (cover) for (const ep of eyeParts) if (cover.eyes[ep.eye]) ep.layer.alpha = 0;
     const hp = handMesh.pos, hr = handMesh.rest, HF = handFrame(P);
     for (let i = 0; i < handW.length; i++) {
