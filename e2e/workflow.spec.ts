@@ -106,7 +106,8 @@ test('requests provide masks, root handoff and prompts; drops accept valid drawi
   await expect(page.getByTestId('preview-status')).toHaveAttribute('data-state', 'ready'); await page.waitForTimeout(300);
   expect(await pixels(page)).not.toBe(before);
   const savedVariant = await readFile(join(directory, 'variants/mouth_a.png')), savedManifest = await readFile(join(directory, 'built/sprites/sprites.json'));
-  for (let index = 0; index < source.data.length; index += 4) if (source.data[index + 3] === 255) source.data.set([255, 255, 255, 255], index);
+  // Redraw the whole picture (the sample's skin is not fully opaque, so test every visible pixel).
+  for (let index = 0; index < source.data.length; index += 4) if (source.data[index + 3] > 0) source.data.set([255, 255, 255, 255], index);
   await drop(page, PNG.sync.write(source), 'mouth_a.png');
   await expect(panel.getByRole('alert')).toContainText('Pixels outside the edit mask changed.', { timeout: 60000 });
   expect(await readFile(join(directory, 'variants/mouth_a.png'))).toEqual(savedVariant); expect(await readFile(join(directory, 'built/sprites/sprites.json'))).toEqual(savedManifest);
