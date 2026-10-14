@@ -94,9 +94,9 @@ repository folder. Codex draws them with its built-in image generation and impor
 editor reloads them automatically. (Claude Code cannot generate images; its message prepares
 the masks and prompts for you to hand to an image generator.)
 
-**Expression eyes** is optional: it adds drawn angry, sad and surprised eyes. The avatar
-switches to them for those expressions and emotion tags and still blinks; avatars without
-them look the same as before.
+**Expressions** is optional: it adds drawn sad and surprised eyes and closed angry and sad
+mouths. The avatar switches to them for those expressions and emotion tags and still blinks
+and speaks; avatars without them look the same as before.
 
 ![Requesting drawn mouths](docs/images/en/05-variants.png)
 

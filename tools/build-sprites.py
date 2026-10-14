@@ -15,7 +15,7 @@ import cv2
 import numpy as np
 from agent_common import (
     ALL_EYE_VARIANTS,
-    MOUTH_VARIANTS,
+    ALL_MOUTH_VARIANTS,
     edit_masks,
     inside_repo,
     project_image,
@@ -76,6 +76,10 @@ RING = 12
 MAX_RING_MEAN = 20
 MAX_RING_SHARE = 0.12
 RING_LEVEL = 48
+# Generators also tint the whole picture slightly; on flat skin even a few levels show as a
+# patch. The tint is measured just inside the mask edge, where the skin should be unchanged.
+TINT_BAND = 10
+MAX_TINT = 24
 
 
 def grey(image):
@@ -143,7 +147,20 @@ def mask_only(name, variant, source, region):
     # Generators flatten transparency; the masked face keeps the source alpha.
     variant = variant.copy()
     variant[..., 3] = source[..., 3]
-    print(f"{name}: importing the mask area only (corrected shift {sx:+d}, {sy:+d} px)")
+    inside = cv2.distanceTransform(region.astype(np.uint8), cv2.DIST_L2, 5)
+    band = opaque & (inside > 0) & (inside <= TINT_BAND)
+    tint = np.zeros(3)
+    if np.any(band):
+        tint = np.median(variant[band][:, :3].astype(np.float32) - source[band][:, :3], axis=0)
+        if np.abs(tint).max() <= MAX_TINT:
+            inner = region > 0
+            variant[inner, :3] = np.clip(variant[inner, :3] - tint, 0, 255).astype(np.uint8)
+        else:
+            tint = np.zeros(3)
+    print(
+        f"{name}: importing the mask area only (corrected shift {sx:+d}, {sy:+d} px, "
+        f"tint {tint[0]:+.0f}, {tint[1]:+.0f}, {tint[2]:+.0f})"
+    )
     return variant
 
 
@@ -173,7 +190,7 @@ def build(project, output=None, tolerance=8):
     if rig["image"] != {"width": source_image.width, "height": source_image.height}:
         raise ValueError("rig.image must match source.png")
     images, meta = {}, {}
-    for name in (*ALL_EYE_VARIANTS, *MOUTH_VARIANTS):
+    for name in (*ALL_EYE_VARIANTS, *ALL_MOUTH_VARIANTS):
         path = project / "variants" / f"{name}.png"
         if not path.exists():
             print(f"Skipping missing variant: {name}")

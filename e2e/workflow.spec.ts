@@ -133,9 +133,9 @@ test('eye and mouth checkboxes immediately adapt the prompt and lip fallback ope
   const prompt = panel.getByRole('textbox', { name: 'Copy message', exact: true });
   await panel.getByRole('checkbox', { name: 'Eyes', exact: true }).check(); await expect(prompt).toContainText('eye drawn variants');
   await panel.getByRole('checkbox', { name: 'Mouth', exact: true }).check(); await expect(prompt).toContainText('eye and mouth drawn variants');
-  await panel.getByRole('checkbox', { name: 'Expression eyes', exact: true }).check();
-  await expect(prompt).toContainText('eye, expression eye (angry, sad, surprised) and mouth drawn variants');
-  await panel.getByRole('checkbox', { name: 'Expression eyes', exact: true }).uncheck();
+  await panel.getByRole('checkbox', { name: 'Expressions', exact: true }).check();
+  await expect(prompt).toContainText('eye, expression (sad and surprised eyes, angry and sad closed mouths) and mouth drawn variants');
+  await panel.getByRole('checkbox', { name: 'Expressions', exact: true }).uncheck();
   await panel.getByRole('checkbox', { name: 'Eyes', exact: true }).uncheck(); await expect(prompt).toContainText('mouth drawn variants');
   await panel.getByRole('checkbox', { name: 'Mouth', exact: true }).uncheck(); await expect(prompt).toHaveCount(0);
   await panel.locator(':scope > summary').click();

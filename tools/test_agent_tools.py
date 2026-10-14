@@ -126,10 +126,14 @@ class AgentToolsTest(unittest.TestCase):
         result = self.cli("variant-requests", self.project)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(
-            len(list((self.project / "variant-requests").glob("*/mask.png"))), 10
+            len(list((self.project / "variant-requests").glob("*/mask.png"))), 11
         )
         self.assertEqual(
-            (self.project / "variant-requests/eyes_angry/mask.png").read_bytes(),
+            (self.project / "variant-requests/mouth_angry/mask.png").read_bytes(),
+            (self.project / "variant-requests/mouth_a/mask.png").read_bytes(),
+        )
+        self.assertEqual(
+            (self.project / "variant-requests/eyes_sad/mask.png").read_bytes(),
             (self.project / "variant-requests/eyes_closed/mask.png").read_bytes(),
         )
         self.assertIn(
@@ -179,7 +183,7 @@ class AgentToolsTest(unittest.TestCase):
         Image.fromarray(source).save(self.project / "source.png")
         variants = self.project / "variants"
         variants.mkdir()
-        path = variants / "eyes_angry.png"
+        path = variants / "eyes_sad.png"
 
         def save(image):
             Image.fromarray(image).save(path)
@@ -192,10 +196,23 @@ class AgentToolsTest(unittest.TestCase):
         save(np.clip(noisy, 0, 255).astype(np.uint8))
         sprites.build(self.project)
         layers = json.loads((self.project / "built/sprites/sprites.json").read_text())["layers"]
-        self.assertEqual(sorted(layers), ["eyes_angry_0", "eyes_angry_1"])
-        with Image.open(self.project / "built/sprites/eyes_angry_0.png") as image:
-            x, y = layers["eyes_angry_0"][:2]
+        self.assertEqual(sorted(layers), ["eyes_sad_0", "eyes_sad_1"])
+        with Image.open(self.project / "built/sprites/eyes_sad_0.png") as image:
+            x, y = layers["eyes_sad_0"][:2]
             self.assertLess(image.getpixel((20 - x, 30 - y))[0], 40)
+        # A uniform tint is measured at the mask edge and removed, so the skin matches.
+        tinted = drawn.astype(int)
+        tinted[..., :3] -= 8
+        tinted[..., 3] = 255
+        save(np.clip(tinted, 0, 255).astype(np.uint8))
+        sprites.build(self.project)
+        x, y, w, h = json.loads((self.project / "built/sprites/sprites.json").read_text())["layers"]["eyes_sad_0"]
+        with Image.open(self.project / "built/sprites/eyes_sad_0.png") as image:
+            sprite = np.array(image.convert("RGBA")).astype(int)
+        solid = sprite[..., 3] == 255
+        solid[25 - y : 36 - y, 15 - x : 26 - x] = False
+        self.assertTrue(solid.any())
+        self.assertLess(np.abs(sprite[..., :3] - source[y : y + h, x : x + w, :3])[solid].mean(), 1)
         # A one-pixel shift is corrected; a uniformly scaled image is resized.
         save(np.roll(drawn, 1, axis=1))
         sprites.build(self.project)

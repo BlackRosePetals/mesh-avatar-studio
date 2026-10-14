@@ -103,7 +103,7 @@ export async function revealRepository() {
 }
 export const variantGroups = {
   eyes: ['eyes_closed', 'eyes_half', 'eyes_smile'],
-  expression: ['eyes_angry', 'eyes_sad', 'eyes_surprise'],
+  expression: ['eyes_sad', 'eyes_surprise', 'mouth_angry', 'mouth_sad'],
   mouth: ['mouth_a', 'mouth_a_half', 'mouth_i', 'mouth_o'],
 } as const;
 export type VariantGroup = keyof typeof variantGroups;

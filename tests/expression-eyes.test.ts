@@ -18,8 +18,8 @@ function sprites(names: string[]) {
   const grid = (rect: number[]) => ({ rest: [rect[0], rect[1]], pos: [0, 0] });
   type Create = (...args: unknown[]) => { update(P: Record<string, number>, phys: unknown, dt: number, mood?: string | null): { eyes: boolean[] } };
   const update = (createSpriteModule(engine, rig).createSprites as unknown as Create)(renderer, sheet, images, grid, () => new Uint8Array(1));
-  return (open: number, mood: string | null = null, dt = 1) => {
-    const result = update.update({ ...defaults, eyeROpen: open, eyeLOpen: open, eyeSmile: 0, eyeSmileL: 0 }, physics, dt, mood);
+  return (open: number, mood: string | null = null, dt = 1, mouthOpen = 0) => {
+    const result = update.update({ ...defaults, eyeROpen: open, eyeLOpen: open, eyeSmile: 0, eyeSmileL: 0, mouthOpen }, physics, dt, mood);
     return { covered: result.eyes, shown: [...layers].filter(([, layer]) => layer.visible && layer.alpha > 0).map(([name]) => name).sort() };
   };
 }
@@ -38,7 +38,9 @@ test('expression names map to drawn-eye moods, and the live expression wins over
 
 test('drawn expression eyes replace open and half eyes, and blinks still close them', () => {
   const frame = sprites(eyes('closed', 'half', 'smile', 'angry', 'sad', 'surprise'));
-  expect(frame(0.72, 'angry')).toEqual({ covered: [true, true], shown: eyes('angry') });
+  expect(frame(0.72, 'sad')).toEqual({ covered: [true, true], shown: eyes('sad') });
+  // the angry face keeps the half-closed eye, even if angry eyes were drawn
+  expect(frame(0.72, 'angry').shown).toEqual(eyes('half'));
   expect(frame(1.22, 'surprise')).toEqual({ covered: [true, true], shown: eyes('surprise') });
   expect(frame(0.1, 'surprise')).toEqual({ covered: [true, true], shown: eyes('closed') });
   expect(frame(0.78, 'sad').shown).toEqual(eyes('sad'));
@@ -47,13 +49,13 @@ test('drawn expression eyes replace open and half eyes, and blinks still close t
 });
 
 test('the blink fade keeps one drawing solid underneath, so no eye turns see-through', () => {
-  const frame = sprites(eyes('closed', 'half', 'angry'));
-  frame(0.72, 'angry');
+  const frame = sprites(eyes('closed', 'half', 'sad'));
+  frame(0.78, 'sad');
   // Mid-fade both drawings are shown and the layered eye stays hidden underneath.
-  expect(frame(0.1, 'angry', 0.02)).toEqual({ covered: [false, false], shown: eyes('angry', 'closed').sort() });
-  frame(0.1, 'angry', 1);
-  expect(frame(0.72, 'angry', 0.02).shown).toEqual(eyes('angry', 'closed').sort());
-  expect(frame(0.72, 'angry', 1).shown).toEqual(eyes('angry'));
+  expect(frame(0.1, 'sad', 0.02)).toEqual({ covered: [false, false], shown: eyes('closed', 'sad').sort() });
+  frame(0.1, 'sad', 1);
+  expect(frame(0.78, 'sad', 0.02).shown).toEqual(eyes('closed', 'sad').sort());
+  expect(frame(0.78, 'sad', 1).shown).toEqual(eyes('sad'));
 });
 
 test('avatars without drawn expression eyes keep the previous drawings', () => {
@@ -61,4 +63,21 @@ test('avatars without drawn expression eyes keep the previous drawings', () => {
   expect(frame(0.72, 'angry').shown).toEqual(eyes('half'));
   expect(frame(1.22, 'surprise')).toEqual({ covered: [false, false], shown: [] });
   expect(frame(0.1, 'sad').shown).toEqual(eyes('closed'));
+});
+
+test('drawn expression mouths replace the closed mouth until an open mouth drawing has faded in', () => {
+  const frame = sprites(['mouth_a', 'mouth_a_half', 'mouth_angry', 'mouth_sad']);
+  expect(frame(1, 'angry').shown).toEqual(['mouth_angry']);
+  expect(frame(1, 'sad').shown).toEqual(['mouth_sad']);
+  expect(frame(1, 'surprise').shown).toEqual([]);
+  // fading in, the open mouth is drawn over the solid closed one; then it is shown alone
+  expect(frame(1, 'angry', 1, 0.18).shown).toEqual(['mouth_a_half', 'mouth_angry']);
+  expect(frame(1, 'angry', 1, 0.5).shown).toEqual(['mouth_a_half']);
+  expect(frame(1, null).shown).toEqual([]);
+});
+
+test('without open mouth drawings the expression mouth stays while speaking', () => {
+  const frame = sprites(['mouth_sad']);
+  expect(frame(1, 'sad', 1, 0.5).shown).toEqual(['mouth_sad']);
+  expect(frame(1, 'angry', 1, 0).shown).toEqual([]);
 });

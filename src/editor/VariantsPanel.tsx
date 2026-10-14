@@ -1,12 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 import { useI18n } from './i18n';
-import { variantGroups, variantNames, projectVariantRequests, openSampleAvatar, ProjectJobError, type LocalProject, type ProjectJob, type VariantGroup, type JobResult, type VariantRequest } from './project';
+import { variantGroups, variantNames, projectVariantRequests, openSampleAvatar, ProjectJobError, type LocalProject, type ProjectJob, type VariantGroup, type VariantName, type JobResult, type VariantRequest } from './project';
 import { AskAgent } from './AskAgent';
 import { JobFeedback } from './JobFeedback';
 import { CopyButton } from './CopyButton';
 import { Icon } from './Icon';
 
-const labels = ['eyesClosed', 'eyesHalf', 'eyesSmile', 'eyesAngry', 'eyesSad', 'eyesSurprise', 'mouthA', 'mouthAHalf', 'mouthI', 'mouthO'] as const;
+const labels = {
+  eyes_closed: 'eyesClosed', eyes_half: 'eyesHalf', eyes_smile: 'eyesSmile', eyes_sad: 'eyesSad', eyes_surprise: 'eyesSurprise',
+  mouth_a: 'mouthA', mouth_a_half: 'mouthAHalf', mouth_i: 'mouthI', mouth_o: 'mouthO', mouth_angry: 'mouthAngry', mouth_sad: 'mouthSad',
+} as const satisfies Record<VariantName, string>;
 const groupOf = (name: string) => (Object.keys(variantGroups) as VariantGroup[]).find(group => (variantGroups[group] as readonly string[]).includes(name));
 export function VariantsPanel({ project, projectPath, assets, rootPath, busy, stale, onRun, mouthRequest, onMouthPresence }: {
   project: LocalProject | null; projectPath?: string; assets?: Record<string, string>; rootPath?: string; busy: boolean; stale: boolean;
@@ -39,7 +42,7 @@ export function VariantsPanel({ project, projectPath, assets, rootPath, busy, st
     }).then(data => {
       if (revision !== current.current) return;
       const ready = data?.layers ? variantNames.filter(name => name.startsWith('eyes_') ? `${name}_0` in data.layers && `${name}_1` in data.layers : name in data.layers) : [];
-      setPresent(ready); onMouthPresence(ready.some(name => name.startsWith('mouth_')));
+      setPresent(ready); onMouthPresence(ready.some(name => (variantGroups.mouth as readonly string[]).includes(name)));
     }).catch(() => { if (revision === current.current) onMouthPresence(false); });
     if (project) void projectVariantRequests(project).then(value => { if (revision === current.current) setRequests(value); });
   }, [project?.name, assets, onMouthPresence]);
@@ -70,8 +73,8 @@ export function VariantsPanel({ project, projectPath, assets, rootPath, busy, st
         {writable ? <button disabled={busy || stale} onClick={() => { void run('variant-requests'); }}>{busy ? t.operationBusy : t.createRequests}</button> : <p className="workflow-note">{t.variantsUnavailable}</p>}
         {stale && <p className="workflow-note">{t.variantsNeedRebuild}</p>}
       {requests.length > 0 && <div className="variant-requests">{requests.filter(request => !target.length || target.includes(groupOf(request.name)!)).map(request => <details key={request.name}>
-        <summary>{t[labels[variantNames.indexOf(request.name)]]} · <code>{request.name}.png</code></summary>
-        <img src={request.maskUrl} alt={`${t.requestFiles}: ${t[labels[variantNames.indexOf(request.name)]]}`} />
+        <summary>{t[labels[request.name]]} · <code>{request.name}.png</code></summary>
+        <img src={request.maskUrl} alt={`${t.requestFiles}: ${t[labels[request.name]]}`} />
         <p><code>{project?.relativePath}/source.png</code><br /><code>{project?.relativePath}/variant-requests/{request.name}/mask.png</code></p>
         <div className="workflow-buttons"><CopyButton value={request.prompt} label={t.copyVariantPrompt} /><CopyButton value={`${project?.relativePath}/source.png\n${project?.relativePath}/variant-requests/${request.name}/mask.png\n${project?.relativePath}/variant-requests/${request.name}/prompt.md`} label={t.copyFilePaths} /></div>
         <pre>{request.prompt}</pre><p>{t.variantOutput}: <code>{project?.relativePath}/variants/{request.name}.png</code></p>

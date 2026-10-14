@@ -3,7 +3,7 @@ import { execFile } from 'node:child_process';
 import { copyFile, lstat, mkdir, mkdtemp, readdir, readFile, realpath, rename, rm, writeFile } from 'node:fs/promises';
 import { join, resolve, relative, dirname } from 'node:path';
 
-export const VARIANTS = ['eyes_closed', 'eyes_half', 'eyes_smile', 'eyes_angry', 'eyes_sad', 'eyes_surprise', 'mouth_a', 'mouth_a_half', 'mouth_i', 'mouth_o'] as const;
+export const VARIANTS = ['eyes_closed', 'eyes_half', 'eyes_smile', 'eyes_sad', 'eyes_surprise', 'mouth_a', 'mouth_a_half', 'mouth_i', 'mouth_o', 'mouth_angry', 'mouth_sad'] as const;
 export type Tool = 'build-layers' | 'variant-requests' | 'build-sprites';
 export class JobError extends Error {
   constructor(public code: 'dependencies' | 'toolFailed' | 'unsafeFiles', public log: string) { super(code); }
