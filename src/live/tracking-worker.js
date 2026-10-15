@@ -1,17 +1,19 @@
 // Camera frames stay in this worker. Only the face pose and timing return to the page.
+// Asset paths are relative to this worker, so the files can be served under any folder.
+const base = new URL('.', self.location.href).href.replace(/\/$/, '');
 self.exports = {};
-self.importScripts('/mediapipe/vision_bundle.cjs');
+self.importScripts(`${base}/vision_bundle.js`);
 const { FaceLandmarker, FilesetResolver } = self.exports;
 let tracker, lastFrame = -Infinity, delegate = 'GPU', frames = 0, gpuSamples = 0, gpuMs = 0;
 self.onmessage = async ({ data }) => {
   if (data.type === 'init') {
     try {
-      const files = await FilesetResolver.forVisionTasks('/mediapipe');
+      const files = await FilesetResolver.forVisionTasks(base);
       const options = { runningMode: 'VIDEO', numFaces: 1, outputFaceBlendshapes: true, outputFacialTransformationMatrixes: true };
-      try { tracker = await FaceLandmarker.createFromOptions(files, { ...options, baseOptions: { modelAssetPath: '/mediapipe/face_landmarker.task', delegate } }); }
+      try { tracker = await FaceLandmarker.createFromOptions(files, { ...options, baseOptions: { modelAssetPath: `${base}/face_landmarker.task`, delegate } }); }
       catch {
         delegate = 'CPU';
-        tracker = await FaceLandmarker.createFromOptions(files, { ...options, baseOptions: { modelAssetPath: '/mediapipe/face_landmarker.task', delegate } });
+        tracker = await FaceLandmarker.createFromOptions(files, { ...options, baseOptions: { modelAssetPath: `${base}/face_landmarker.task`, delegate } });
       }
       self.postMessage({ type: 'ready', delegate });
       // Also wakes the ImageBitmap fallback when video frame callbacks stop in a hidden tab.

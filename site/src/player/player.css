@@ -1,0 +1,21 @@
+.player-app .live-header a { font-size: 13px; text-decoration: none; }
+.player-app .live-header a:hover { text-decoration: underline; }
+.player-language { flex-shrink: 0; }
+.player-intro { margin: -8px 0 16px; color: #546a87; }
+.player-stage { position: relative; }
+.player-canvas { display: block; width: 100%; height: 100%; }
+.player-popped, .player-drop { position: absolute; inset: 0; display: grid; place-content: center; margin: 0; padding: 24px; text-align: center; }
+.player-popped { color: #546a87; background: #f3f5f8; }
+.player-drop { z-index: 3; border: 3px dashed #3977d8; border-radius: 12px; background: #e8f0fdee; color: #1d4f9c; font-weight: 600; }
+.player-source { margin: 0 0 12px; font-weight: 600; overflow-wrap: anywhere; }
+.player-show { margin: 12px 0; }
+.player-exit { margin: 0; color: #546a87; font-size: 12px; text-align: center; }
+
+/* Avatar only: the stage fills the window for a window capture. */
+.player-full { max-width: none; padding: 0; }
+.player-full .live-header, .player-full .player-intro, .player-full .live-controls, .player-full [data-testid="player-status"] { display: none; }
+.player-full .live-layout { display: block; }
+.player-full .live-preview { height: 100dvh; border: 0; border-radius: 0; }
+.player-full .player-exit { position: fixed; bottom: 12px; left: 50%; transform: translateX(-50%); padding: 6px 12px; border-radius: 999px; background: #162132cc; color: white; }
+
+@media (max-width: 480px) { .player-app { padding: 12px 16px; } }

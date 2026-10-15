@@ -17,7 +17,8 @@ export class CameraCapture {
   private started = Infinity;
   private results: number[] = [];
   readonly timing = { frames: 0, totalMs: 0, maxMs: 0, delegate: '', source: '' };
-  constructor(private video: HTMLVideoElement, private onResult: (result: FaceResult, now: number) => void, private onState: (state: CameraState) => void) {}
+  constructor(private video: HTMLVideoElement, private onResult: (result: FaceResult, now: number) => void, private onState: (state: CameraState) => void,
+    private workerUrl?: string) {}
   stop() {
     this.generation++;
     if (this.videoCallback) this.video.cancelVideoFrameCallback?.(this.videoCallback);
@@ -51,7 +52,7 @@ export class CameraCapture {
       // Preview playback must not gate track processing when the document is hidden.
       void this.video.play().catch(() => undefined);
       loadingModel = true;
-      const worker = createTrackingWorker(); this.worker = worker;
+      const worker = createTrackingWorker(this.workerUrl); this.worker = worker;
       const fail = () => { if (generation === this.generation) { this.stop(); this.onState('modelError'); } };
       worker.onerror = fail;
       worker.onmessage = ({ data }: MessageEvent<TrackingWorkerMessage>) => {

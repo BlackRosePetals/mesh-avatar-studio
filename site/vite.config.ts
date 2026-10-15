@@ -2,9 +2,11 @@ import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import react from '@vitejs/plugin-react';
 import { defineConfig, type Plugin } from 'vite';
 import { packProjectAvatar } from '../packages/runtime/src/format/project-archive';
 import { readAvatarFolder } from '../tools/avatar-files.mjs';
+import { mediapipeAssets } from '../src/server/mediapipe-assets';
 
 const fromHere = (path: string) => fileURLToPath(new URL(path, import.meta.url));
 const base = '/mesh-avatar-studio/';
@@ -73,7 +75,8 @@ export default defineConfig({
   root: fromHere('./'),
   base,
   publicDir: false,
-  plugins: [sampleAvatar(), socialImage()],
+  // The Player page tracks the face in the browser with the same local MediaPipe files as Studio.
+  plugins: [react(), sampleAvatar(), socialImage(), mediapipeAssets(fromHere('..'), base)],
   resolve: { alias: { 'mesh-avatar': fromHere('../packages/runtime/src/index.ts') } },
   server: {
     host: '127.0.0.1',
@@ -90,6 +93,8 @@ export default defineConfig({
       input: {
         en: fromHere('./index.html'),
         ja: fromHere('./ja/index.html'),
+        play: fromHere('./play/index.html'),
+        'ja-play': fromHere('./ja/play/index.html'),
       },
       output: { banner: `/*! fflate\n${fflateLicense}\n*/` },
     },
