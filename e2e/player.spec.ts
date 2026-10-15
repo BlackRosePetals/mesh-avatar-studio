@@ -61,11 +61,14 @@ test('player runs the sample with face tracking in the browser and makes no outs
 });
 
 test('player opens a dropped or chosen .mavatar and recovers from a broken file', async ({ page }) => {
+  const messages: string[] = [];
+  page.on('console', message => messages.push(`${message.type()}: ${message.text()}`));
+  page.on('framenavigated', frame => { if (frame === page.mainFrame()) messages.push(`navigated: ${frame.url()}`); });
   await page.goto(`${site}play/`);
   await ready(page, 'Miko (sample)');
   const archive = await (await page.request.get(`${site}miko.mavatar`)).body();
   await page.getByTestId('player-file').setInputFiles({ name: 'mine.mavatar', mimeType: 'application/octet-stream', buffer: archive });
-  await ready(page, 'mine.mavatar');
+  await ready(page, 'mine.mavatar').catch(error => { throw new Error(`${error}\nPage log:\n${messages.join('\n')}`); });
   await expect(page.getByText('Miko © Yuki Shindo')).toHaveCount(0);
   await page.getByTestId('player-file').setInputFiles({ name: 'broken.mavatar', mimeType: 'application/octet-stream', buffer: Buffer.from('not an avatar') });
   await expect(page.getByTestId('player-notice')).toContainText('Could not open this file');

@@ -98,8 +98,9 @@ export function PlayerApp({ language }: { language: PlayerLanguage }) {
         value.setSpeaking(micOn); value.setVoiceLevel(micOn ? microphone.current?.level(control.gain) ?? 0 : 0);
       });
       setViewState('ready');
-    }).catch(() => {
+    }).catch((error: unknown) => {
       if (cancelled) return;
+      console.warn('Could not open the avatar:', error);
       setNotice('loadError');
       // Return to the last avatar that opened, or to the sample if none did.
       setSource(goodSource.current === source ? { kind: 'sample' } : goodSource.current);
