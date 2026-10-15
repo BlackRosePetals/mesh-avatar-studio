@@ -11,7 +11,9 @@ quality of the result depends on looking at your own output and correcting it.
 
 ### Tools
 Node.js 22.17+, Python 3.10+ with [uv](https://docs.astral.sh/uv/), and Playwright Chromium
-(`npx playwright install chromium`). Run `npm install` once.
+(`npx playwright install chromium`). Run `npm install` once, then `npm run doctor`: it reports
+each missing tool. Treat its warnings as blockers for this guide, since every step below needs
+uv, Python or Chromium.
 
 ### Model
 Reading pixel coordinates from images needs strong vision. These setups are known to work:

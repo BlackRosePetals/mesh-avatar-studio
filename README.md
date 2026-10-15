@@ -14,12 +14,19 @@ To move it with your own face and voice without installing anything, open the
 
 ## Try the sample
 
-Requires Node.js 22.17+.
+Requires Node.js 22.17+ and Git.
 
 ```sh
-npm install
+npx create-mesh-avatar-studio
+cd mesh-avatar-studio
 npm run dev
 ```
+
+The first command downloads the repository, installs its packages and checks the tools
+Studio needs. If you cloned the repository yourself, run `npm install`, then
+`npm run doctor` for the same check. Only Node.js is needed for the editor and the Live
+page. uv and Python rebuild layers, and Playwright Chromium renders the motion review when
+an agent creates an avatar; the check warns about each one that is missing.
 
 Open the URL printed in the terminal (for example `http://127.0.0.1:5173/`). The editor opens
 the bundled sample, Miko in a qipao. Pick a part on the left, drag its dots on the image and
@@ -31,7 +38,8 @@ watch the preview on the right. The sample is read-only; when you change it, cho
 Use `git clone` to download the repository when possible. If you use a ZIP, open its
 Properties in File Explorer and select **Unblock**, if shown, before extracting it.
 
-Create `projects/` yourself under your Windows account before asking an agent to work in it.
+Create `projects/` yourself under your Windows account before asking an agent to work in it
+(`npx create-mesh-avatar-studio` creates it for you).
 Folders created by another account or an agent running in a sandbox can have permissions
 that prevent the editor from reading them. If a project cannot be read, use the folder's
 **Properties → Security** settings to grant your account access to the whole project,

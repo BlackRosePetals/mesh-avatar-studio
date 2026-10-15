@@ -11,7 +11,7 @@
     "preview:site": "vite preview --config site/vite.config.ts",
     "screenshots": "node tools/capture-readme-screenshots.mjs",
     "test": "vitest run",
-    "lint": "eslint src tests e2e tools/*.mjs packages/runtime/src packages/runtime/tests packages/runtime/vite.config.ts packages/runtime/*.mjs site/src site/vite.config.ts",
+    "lint": "eslint src tests e2e tools/*.mjs packages/create-mesh-avatar-studio/*.mjs packages/runtime/src packages/runtime/tests packages/runtime/vite.config.ts packages/runtime/*.mjs site/src site/vite.config.ts",
     "build": "tsc --noEmit && vite build",
     "build:runtime": "npm run build -w mesh-avatar",
     "changeset": "changeset",
@@ -21,7 +21,8 @@
     "validate-rig": "node --experimental-strip-types tools/validate-rig.mjs",
     "validate-avatar": "node --experimental-strip-types tools/validate-avatar.mjs",
     "pack-avatar": "node --experimental-strip-types tools/pack-avatar.mjs",
-    "render-poses": "node --experimental-strip-types tools/render-poses.mjs"
+    "render-poses": "node --experimental-strip-types tools/render-poses.mjs",
+    "doctor": "node tools/doctor.mjs"
   },
   "dependencies": {
     "@mediapipe/tasks-vision": "0.10.21",

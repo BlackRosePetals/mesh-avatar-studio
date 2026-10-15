@@ -46,6 +46,9 @@ jobs:
       - name: Check runtime package contents
         run: npm pack --dry-run -w mesh-avatar
 
+      - name: Check the setup command package
+        run: npm pack --dry-run -w create-mesh-avatar-studio
+
       - name: Set up uv
         uses: astral-sh/setup-uv@v5
         with:

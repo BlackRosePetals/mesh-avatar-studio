@@ -1,0 +1,35 @@
+{
+  "name": "create-mesh-avatar-studio",
+  "version": "0.0.0",
+  "type": "module",
+  "license": "MIT",
+  "description": "Set up Mesh Avatar Studio in one command: download it, install packages and check the tools it needs.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/shinshin86/mesh-avatar-studio.git",
+    "directory": "packages/create-mesh-avatar-studio"
+  },
+  "homepage": "https://github.com/shinshin86/mesh-avatar-studio",
+  "keywords": [
+    "avatar",
+    "2d",
+    "vtuber",
+    "mesh-avatar",
+    "create"
+  ],
+  "bin": {
+    "create-mesh-avatar-studio": "./index.mjs"
+  },
+  "files": [
+    "index.mjs",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=22.17"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  }
+}
