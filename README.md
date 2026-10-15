@@ -7,6 +7,8 @@ breathes and sways its hair. A coding agent prepares the avatar from your image;
 it in a local editor with a live preview.
 
 See it move on the [landing page](https://shinshin86.github.io/mesh-avatar-studio/).
+To move it with your own face and voice without installing anything, open the
+[Player](https://shinshin86.github.io/mesh-avatar-studio/play/) in Chrome or Edge.
 
 ![The editor with the Miko sample](docs/images/en/01-overview.png)
 
@@ -153,6 +155,15 @@ OBS's Virtual Camera ([steps](docs/reference.md#video-calls)).
 
 Stream view options, troubleshooting and privacy details are in the
 [reference](docs/reference.md#live-and-streaming).
+
+### Without installing anything
+
+The [Player](https://shinshin86.github.io/mesh-avatar-studio/play/) runs face tracking,
+microphone lip sync, expressions and lighting entirely in the browser. Open the sample or
+your own `.mavatar` file; nothing is uploaded. It has no stream URL: choose **Open avatar
+window** (Chrome or Edge) and add that window to OBS with **Window Capture** on a green
+background and a Chroma Key filter. Transparency, the OBS Browser Source and switching
+expressions from other apps need Studio's Live page.
 
 ## Releases
 

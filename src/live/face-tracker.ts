@@ -6,4 +6,5 @@ export type TrackingWorkerMessage =
   | { type: 'consumed' | 'tick' | 'error' };
 
 // Classic worker: the pinned MediaPipe runtime loads its local WASM glue with importScripts.
-export function createTrackingWorker() { return new Worker('/mediapipe/tracking-worker.js'); }
+// Studio serves the files at /mediapipe/; other sites pass their own worker URL.
+export function createTrackingWorker(url = '/mediapipe/tracking-worker.js') { return new Worker(url); }

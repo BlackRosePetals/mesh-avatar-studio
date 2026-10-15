@@ -8,6 +8,13 @@ on:
       - 'docs/images/**'
       - 'packages/runtime/src/**'
       - 'samples/miko-qipao/**'
+      # The Player page reuses Studio's Live, lighting and tracking files.
+      - 'src/live/**'
+      - 'src/lighting/**'
+      - 'src/editor/Icon.tsx'
+      - 'src/server/mediapipe-assets.ts'
+      - 'vendor/mediapipe/**'
+      - 'package-lock.json'
       - '.github/workflows/pages.yml'
   workflow_dispatch:
 

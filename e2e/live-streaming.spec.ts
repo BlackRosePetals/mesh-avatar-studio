@@ -40,7 +40,7 @@ async function syntheticMedia(page: Page) {
   });
 }
 async function stubTracker(page: Page, moving = false) {
-  await page.context().route('**/mediapipe/vision_bundle.cjs', route => route.fulfill({ contentType: 'application/javascript', body: `
+  await page.context().route('**/mediapipe/vision_bundle.js', route => route.fulfill({ contentType: 'application/javascript', body: `
     self.exports.FilesetResolver = { forVisionTasks: async () => ({}) };
     self.exports.FaceLandmarker = { createFromOptions: async () => ({ close() {}, detectForVideo() {
       const a = ${moving ? 'Math.sin(performance.now() / 300) * 24' : '24'} * Math.PI / 180, c = Math.cos(a), s = Math.sin(a);
