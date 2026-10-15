@@ -76,10 +76,10 @@ export function nodeVersionOk(version) {
   return major > MIN_NODE[0] || (major === MIN_NODE[0] && minor >= MIN_NODE[1]);
 }
 
-/** Runs a command with its output shown to the person. Returns the exit status, or null when the command is missing. */
-export function runCommand(command, args, cwd) {
+/** Runs a command, showing its output unless quiet. Returns the exit status, or null when the command is missing. */
+export function runCommand(command, args, cwd, quiet = false) {
   // npm is a batch file on Windows, which Node starts only through a shell.
-  const result = spawnSync(command, args, { cwd, stdio: 'inherit', shell: process.platform === 'win32' && command === 'npm' });
+  const result = spawnSync(command, args, { cwd, stdio: quiet ? 'ignore' : 'inherit', shell: process.platform === 'win32' && command === 'npm' });
   return result.error ? null : result.status;
 }
 
@@ -87,7 +87,7 @@ export function create(argv, { run = runCommand, log = console.log, error = cons
   const options = parseArgs(argv, env), t = text[options.lang];
   if (options.help) { log(t.usage); return 0; }
   if (!nodeVersionOk(version)) { error(t.nodeOld(version.replace(/^v/, ''))); return 1; }
-  if (run('git', ['--version'], cwd) !== 0) { error(t.gitMissing); return 1; }
+  if (run('git', ['--version'], cwd, true) !== 0) { error(t.gitMissing); return 1; }
   const target = resolve(cwd, options.directory);
   if (existsSync(target) && readdirSync(target).length) { error(t.notEmpty(options.directory)); return 1; }
   log(t.cloning(options.directory));
