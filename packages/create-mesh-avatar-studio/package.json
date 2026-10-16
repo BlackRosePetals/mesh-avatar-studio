@@ -18,7 +18,7 @@
     "create"
   ],
   "bin": {
-    "create-mesh-avatar-studio": "./index.mjs"
+    "create-mesh-avatar-studio": "index.mjs"
   },
   "files": [
     "index.mjs",
