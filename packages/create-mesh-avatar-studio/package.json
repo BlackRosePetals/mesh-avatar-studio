@@ -1,6 +1,6 @@
 {
   "name": "create-mesh-avatar-studio",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "license": "MIT",
   "description": "Set up Mesh Avatar Studio in one command: download it, install packages and check the tools it needs.",
