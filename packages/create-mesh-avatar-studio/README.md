@@ -2,6 +2,8 @@
 
 Set up [Mesh Avatar Studio](https://github.com/shinshin86/mesh-avatar-studio) in one command.
 
+![A Mesh Avatar Studio avatar following a face through a webcam](https://raw.githubusercontent.com/shinshin86/mesh-avatar-studio/main/docs/images/face-tracking.gif)
+
 ```sh
 npx create-mesh-avatar-studio
 ```
