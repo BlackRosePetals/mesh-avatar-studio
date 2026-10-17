@@ -1,5 +1,11 @@
 # mesh-avatar
 
+## 0.2.1
+
+### Patch Changes
+
+- 144ebc9: Show an animated demo of face tracking at the top of the README.
+
 ## 0.2.0
 
 ### Minor Changes
