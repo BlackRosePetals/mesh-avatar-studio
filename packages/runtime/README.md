@@ -2,7 +2,9 @@
 
 A WebGL runtime for 2D mesh avatars created with [Mesh Avatar Studio](https://github.com/shinshin86/mesh-avatar-studio). Load a `.mavatar` archive or an avatar folder into a canvas, then control its motion, voice level and expressions.
 
-![A Mesh Avatar Studio avatar following a face through a webcam](https://raw.githubusercontent.com/shinshin86/mesh-avatar-studio/main/docs/images/face-tracking.gif)
+<p align="center">
+  <img src="https://raw.githubusercontent.com/shinshin86/mesh-avatar-studio/main/docs/images/face-tracking.gif" width="400" alt="A Mesh Avatar Studio avatar following a face through a webcam">
+</p>
 
 To move an avatar with your own face and voice without installing anything, open the
 [Player](https://shinshin86.github.io/mesh-avatar-studio/play/) in Chrome or Edge.
