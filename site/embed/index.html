@@ -3,8 +3,8 @@
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta http-equiv="Content-Security-Policy" content="connect-src 'self' blob: data: ws://127.0.0.1:* ws://localhost:*; img-src 'self' blob: data:; media-src 'self' blob:; object-src 'none'; base-uri 'self'">
-    <meta name="description" content="Try expressions, text lip sync and your own avatar files. Without a src attribute, the element loads the same Miko from GitHub Pages.">
+    <meta http-equiv="Content-Security-Policy" content="connect-src 'self' https://shinshin86.github.io blob: data: ws://127.0.0.1:* ws://localhost:*; img-src 'self' blob: data:; media-src 'self' blob:; object-src 'none'; base-uri 'self'">
+    <meta name="description" content="Try expressions, text lip sync and your own avatar files. Without src, the element loads Miko from https://shinshin86.github.io/mesh-avatar-studio/miko.mavatar.">
     <title>Mesh Avatar — Try the HTML embed</title>
     <link rel="canonical" href="https://shinshin86.github.io/mesh-avatar-studio/embed/">
     <link rel="alternate" hreflang="en" href="https://shinshin86.github.io/mesh-avatar-studio/embed/">
@@ -22,11 +22,11 @@
         <a class="header-link language-switch" href="../ja/embed/" lang="ja">日本語</a>
       </nav>
     </header>
-    <main id="embed-playground" class="shell" data-loading="Loading avatar…" data-ready="Avatar ready" data-error="Could not load this avatar. Choose another file or return to Miko." data-audio-error="Could not play this audio file." data-mic-error="Could not start the microphone. Check browser permissions and use HTTPS or localhost." data-copy-error="Select and copy the code above.">
+    <main id="embed-playground" class="shell" data-loading="Loading avatar…" data-ready="Avatar ready" data-error="Could not load this avatar. Choose another file or return to Miko." data-copy-error="Select and copy the code above.">
       <section class="intro" aria-labelledby="embed-title">
         <p class="eyebrow">mesh-avatar-element</p>
         <h1 id="embed-title">Try the HTML embed</h1>
-        <p>Try expressions, text lip sync and your own avatar files. Without a src attribute, the element loads the same Miko from GitHub Pages.</p>
+        <p>Try expressions, text lip sync and your own avatar files. Without src, the element loads Miko from https://shinshin86.github.io/mesh-avatar-studio/miko.mavatar.</p>
         <div class="code-card">
           <div class="code-heading">
             <h2>Embed on your page <span>HTML</span></h2>
@@ -39,21 +39,16 @@
       </section>
       <div class="embed-layout">
         <section class="embed-stage" aria-label="Avatar preview">
-          <mesh-avatar src="%BASE_URL%miko.mavatar" label="Miko"></mesh-avatar>
+          <mesh-avatar></mesh-avatar>
           <p id="source-name">Miko</p>
           <p id="status" role="status" data-state="loading">Loading avatar…</p>
         </section>
         <div class="embed-panels">
-          <section class="control-panel">
-            <h2>Avatar file</h2>
-            <label for="avatar-file">Choose a .mavatar file</label>
-            <input id="avatar-file" type="file" accept=".mavatar">
-            <button id="restore-miko" type="button">Return to Miko</button>
-          </section>
           <fieldset id="avatar-controls" disabled>
             <legend class="sr-only">Avatar controls</legend>
             <section class="control-panel">
-              <h2>Expressions</h2>
+              <div class="embed-demo-controls">
+                <h2>Expressions</h2>
               <div class="expression-chips" role="group" aria-label="Expressions">
                 <button type="button" data-expression="neutral" aria-pressed="true">Neutral</button>
                 <button type="button" data-expression="smile" aria-pressed="false">Smile</button>
@@ -64,30 +59,49 @@
                 <button type="button" data-expression="sad" aria-pressed="false">Sad</button>
                 <button type="button" data-expression="wink" aria-pressed="false">Wink</button>
               </div>
-              <label for="emotion">Emotion</label>
-              <select id="emotion"><option value="">None</option><option value="happy">Happy</option><option value="sad">Sad</option><option value="angry">Angry</option><option value="surprised">Surprised</option><option value="relaxed">Relaxed</option><option value="neutral">Neutral</option></select>
-              <label class="check"><input id="paused" type="checkbox">Pause animation</label>
-              <label class="check"><input id="no-idle" type="checkbox">Disable idle motion</label>
+              </div>
+              <div class="code-card">
+                <div class="code-heading"><h3>HTML</h3><button type="button" class="copy-button" data-copy="expression-code" data-copied="Copied">Copy</button></div>
+                <pre tabindex="0"><code id="expression-code">&lt;mesh-avatar&gt;&lt;/mesh-avatar&gt;</code></pre>
+              </div>
             </section>
             <section class="control-panel">
-              <h2>Text lip sync</h2>
-              <form id="speech-form">
-                <label for="speech-text">Japanese text</label>
-                <input id="speech-text" type="text" value="こんにちは" maxlength="300">
-                <button type="submit">Animate speech</button>
-              </form>
-              <p class="hint">Mouth animation only. No voice is generated.</p>
-            </section>
-            <section class="control-panel">
-              <h2>Audio lip sync</h2>
-              <label for="audio-file">Choose an audio file</label>
-              <input id="audio-file" type="file" accept="audio/*">
-              <audio controls aria-label="Audio lip sync"></audio>
-              <button id="microphone" type="button" aria-pressed="false" data-start="Start microphone" data-stop="Stop microphone">Start microphone</button>
+              <div class="embed-demo-controls">
+                <h2>Text lip sync</h2>
+                <form id="speech-form">
+                  <label for="speech-text">Japanese text</label>
+                  <input id="speech-text" type="text" value="こんにちは" maxlength="300">
+                  <button type="submit">Animate speech</button>
+                </form>
+                <p class="hint">Mouth animation only. No voice is generated.</p>
+              </div>
+              <div class="code-card">
+                <div class="code-heading"><h3>JavaScript</h3><button type="button" class="copy-button" data-copy="speech-code" data-copied="Copied">Copy</button></div>
+                <pre tabindex="0"><code id="speech-code">const el = document.querySelector('mesh-avatar');
+el.speak('こんにちは');</code></pre>
+              </div>
             </section>
           </fieldset>
+          <section class="control-panel">
+            <div class="embed-demo-controls">
+              <h2>Use your own .mavatar</h2>
+              <div class="file-actions">
+                <input id="avatar-file" class="file-input" type="file" accept=".mavatar" aria-labelledby="avatar-file-label">
+                <label id="avatar-file-label" class="file-button" for="avatar-file">Choose a .mavatar file</label>
+                <button id="restore-miko" type="button">Return to Miko</button>
+              </div>
+              <p id="selected-file" class="hint" aria-live="polite">Selected: Miko</p>
+              <p class="hint">Files are read in your browser and are not uploaded.</p>
+            </div>
+            <div>
+              <div class="code-card">
+                <div class="code-heading"><h3>HTML</h3><button type="button" class="copy-button" data-copy="file-code" data-copied="Copied">Copy</button></div>
+                <pre tabindex="0"><code id="file-code">&lt;mesh-avatar src="/path/to/your-avatar.mavatar"&gt;&lt;/mesh-avatar&gt;</code></pre>
+              </div>
+              <p class="hint">Set src to the path or URL of the file hosted on your site.</p>
+            </div>
+          </section>
           <p id="notice" role="status"></p>
-          <p class="embed-privacy">Avatar files, audio files and microphone audio are processed in your browser and are not uploaded.</p>
         </div>
       </div>
     </main>

@@ -6,7 +6,7 @@ export type { Emotion, Fit } from './attributes.js';
 export type { AvatarSource, MeshAvatar, LiveExpression } from 'mesh-avatar';
 
 const STYLE = `
-:host { display: block; position: relative; aspect-ratio: 3 / 4; }
+:host { display: block; position: relative; aspect-ratio: 1 / 1; }
 :host([hidden]) { display: none; }
 canvas { display: block; width: 100%; height: 100%; }
 `;

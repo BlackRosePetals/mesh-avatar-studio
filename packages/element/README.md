@@ -17,6 +17,9 @@ Add these two lines to your page to show the Miko sample:
 <mesh-avatar></mesh-avatar>
 ```
 
+Without `src`, the element loads Miko from
+`https://shinshin86.github.io/mesh-avatar-studio/miko.mavatar`.
+
 ### npm
 
 ```sh
@@ -43,7 +46,7 @@ An unpacked avatar folder URL also works. Cross-origin assets need CORS headers.
 
 ### Size
 
-The element defaults to `display: block; aspect-ratio: 3 / 4`. Set its width in your page's CSS; you can also override its height or aspect ratio. The background is transparent.
+The element defaults to `display: block; aspect-ratio: 1 / 1`. Set its width in your page's CSS; you can also override its height or aspect ratio. The background is transparent.
 
 ```html
 <style>

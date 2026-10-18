@@ -3,8 +3,8 @@
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta http-equiv="Content-Security-Policy" content="connect-src 'self' blob: data: ws://127.0.0.1:* ws://localhost:*; img-src 'self' blob: data:; media-src 'self' blob:; object-src 'none'; base-uri 'self'">
-    <meta name="description" content="表情や口パクを試したり、自分のアバターを表示したりできます。src 属性を省くと、同じ Miko が GitHub Pages から読み込まれます。">
+    <meta http-equiv="Content-Security-Policy" content="connect-src 'self' https://shinshin86.github.io blob: data: ws://127.0.0.1:* ws://localhost:*; img-src 'self' blob: data:; media-src 'self' blob:; object-src 'none'; base-uri 'self'">
+    <meta name="description" content="表情や口パクを試したり、自分のアバターを表示したりできます。src を省くと、https://shinshin86.github.io/mesh-avatar-studio/miko.mavatar から Miko を読み込みます。">
     <title>Mesh Avatar — HTML の埋め込みを試す</title>
     <link rel="canonical" href="https://shinshin86.github.io/mesh-avatar-studio/ja/embed/">
     <link rel="alternate" hreflang="en" href="https://shinshin86.github.io/mesh-avatar-studio/embed/">
@@ -22,11 +22,11 @@
         <a class="header-link language-switch" href="../../embed/" lang="en">English</a>
       </nav>
     </header>
-    <main id="embed-playground" class="shell" data-loading="読み込み中…" data-ready="アバターを読み込みました" data-error="読み込めませんでした。別のファイルを選ぶか、Miko に戻してください。" data-audio-error="この音声ファイルを再生できませんでした。" data-mic-error="マイクを開始できませんでした。ブラウザのアクセス許可を確認し、HTTPS または localhost で開いてください。" data-copy-error="上のコードを選択してコピーしてください。">
+    <main id="embed-playground" class="shell" data-loading="読み込み中…" data-ready="アバターを読み込みました" data-error="読み込めませんでした。別のファイルを選ぶか、Miko に戻してください。" data-copy-error="上のコードを選択してコピーしてください。">
       <section class="intro" aria-labelledby="embed-title">
         <p class="eyebrow">mesh-avatar-element</p>
         <h1 id="embed-title">HTML の埋め込みを試す</h1>
-        <p>表情や口パクを試したり、自分のアバターを表示したりできます。src 属性を省くと、同じ Miko が GitHub Pages から読み込まれます。</p>
+        <p>表情や口パクを試したり、自分のアバターを表示したりできます。src を省くと、https://shinshin86.github.io/mesh-avatar-studio/miko.mavatar から Miko を読み込みます。</p>
         <div class="code-card">
           <div class="code-heading">
             <h2>自分のページに埋め込む <span>HTML</span></h2>
@@ -39,21 +39,16 @@
       </section>
       <div class="embed-layout">
         <section class="embed-stage" aria-label="アバターのプレビュー">
-          <mesh-avatar src="%BASE_URL%miko.mavatar" label="Miko"></mesh-avatar>
+          <mesh-avatar></mesh-avatar>
           <p id="source-name">Miko</p>
           <p id="status" role="status" data-state="loading">読み込み中…</p>
         </section>
         <div class="embed-panels">
-          <section class="control-panel">
-            <h2>アバター</h2>
-            <label for="avatar-file">.mavatar ファイルを選ぶ</label>
-            <input id="avatar-file" type="file" accept=".mavatar">
-            <button id="restore-miko" type="button">Miko に戻す</button>
-          </section>
           <fieldset id="avatar-controls" disabled>
             <legend class="sr-only">アバターの操作</legend>
             <section class="control-panel">
-              <h2>表情</h2>
+              <div class="embed-demo-controls">
+                <h2>表情</h2>
               <div class="expression-chips" role="group" aria-label="表情">
                 <button type="button" data-expression="neutral" aria-pressed="true">ふつう</button>
                 <button type="button" data-expression="smile" aria-pressed="false">笑顔</button>
@@ -64,30 +59,49 @@
                 <button type="button" data-expression="sad" aria-pressed="false">悲しみ</button>
                 <button type="button" data-expression="wink" aria-pressed="false">ウインク</button>
               </div>
-              <label for="emotion">感情</label>
-              <select id="emotion"><option value="">指定なし</option><option value="happy">喜び</option><option value="sad">悲しみ</option><option value="angry">怒り</option><option value="surprised">驚き</option><option value="relaxed">リラックス</option><option value="neutral">ふつう</option></select>
-              <label class="check"><input id="paused" type="checkbox">動きを止める</label>
-              <label class="check"><input id="no-idle" type="checkbox">待機動作を使わない</label>
+              </div>
+              <div class="code-card">
+                <div class="code-heading"><h3>HTML</h3><button type="button" class="copy-button" data-copy="expression-code" data-copied="コピー済み">コピー</button></div>
+                <pre tabindex="0"><code id="expression-code">&lt;mesh-avatar&gt;&lt;/mesh-avatar&gt;</code></pre>
+              </div>
             </section>
             <section class="control-panel">
-              <h2>文章で口を動かす</h2>
-              <form id="speech-form">
-                <label for="speech-text">日本語の文章</label>
-                <input id="speech-text" type="text" value="こんにちは" maxlength="300">
-                <button type="submit">口を動かす</button>
-              </form>
-              <p class="hint">口の動きだけを試せます。音声は流れません。</p>
-            </section>
-            <section class="control-panel">
-              <h2>音声に合わせて口を動かす</h2>
-              <label for="audio-file">音声ファイルを選ぶ</label>
-              <input id="audio-file" type="file" accept="audio/*">
-              <audio controls aria-label="音声に合わせて口を動かす"></audio>
-              <button id="microphone" type="button" aria-pressed="false" data-start="マイクを開始" data-stop="マイクを停止">マイクを開始</button>
+              <div class="embed-demo-controls">
+                <h2>文章で口を動かす</h2>
+                <form id="speech-form">
+                  <label for="speech-text">日本語の文章</label>
+                  <input id="speech-text" type="text" value="こんにちは" maxlength="300">
+                  <button type="submit">口を動かす</button>
+                </form>
+                <p class="hint">口の動きだけを試せます。音声は流れません。</p>
+              </div>
+              <div class="code-card">
+                <div class="code-heading"><h3>JavaScript</h3><button type="button" class="copy-button" data-copy="speech-code" data-copied="コピー済み">コピー</button></div>
+                <pre tabindex="0"><code id="speech-code">const el = document.querySelector('mesh-avatar');
+el.speak('こんにちは');</code></pre>
+              </div>
             </section>
           </fieldset>
+          <section class="control-panel">
+            <div class="embed-demo-controls">
+              <h2>自分の .mavatar を表示</h2>
+              <div class="file-actions">
+                <input id="avatar-file" class="file-input" type="file" accept=".mavatar" aria-labelledby="avatar-file-label">
+                <label id="avatar-file-label" class="file-button" for="avatar-file">.mavatar ファイルを選ぶ</label>
+                <button id="restore-miko" type="button">Miko に戻す</button>
+              </div>
+              <p id="selected-file" class="hint" aria-live="polite">選択中: Miko</p>
+              <p class="hint">ファイルはブラウザ内で読み込み、外部には送信しません。</p>
+            </div>
+            <div>
+              <div class="code-card">
+                <div class="code-heading"><h3>HTML</h3><button type="button" class="copy-button" data-copy="file-code" data-copied="コピー済み">コピー</button></div>
+                <pre tabindex="0"><code id="file-code">&lt;mesh-avatar src="/path/to/your-avatar.mavatar"&gt;&lt;/mesh-avatar&gt;</code></pre>
+              </div>
+              <p class="hint">自分のサイトに置いたファイルのパスか URL を src に指定してください。</p>
+            </div>
+          </section>
           <p id="notice" role="status"></p>
-          <p class="embed-privacy">選んだアバターや音声ファイル、マイクの音声はブラウザ内で処理し、外部には送信しません。</p>
         </div>
       </div>
     </main>

@@ -4,13 +4,18 @@ import { readFile } from 'node:fs/promises';
 import { samplePresent, sampleSkipReason } from './sample';
 
 const site = `http://127.0.0.1:${process.env.PLAYWRIGHT_SITE_PORT ?? 5174}/mesh-avatar-studio/`;
+const defaultSource = 'https://shinshin86.github.io/mesh-avatar-studio/miko.mavatar';
 const outside = new WeakMap<Page, string[]>();
 
 test.beforeEach(async ({ context, page }) => {
   test.skip(!samplePresent, sampleSkipReason);
   const requests: string[] = [];
   outside.set(page, requests);
+  const archive = await (await page.request.get(`${site}miko.mavatar`)).body();
   await context.route('**/*', route => {
+    if (route.request().url() === defaultSource) {
+      return route.fulfill({ contentType: 'application/octet-stream', headers: { 'access-control-allow-origin': '*' }, body: archive });
+    }
     if (new URL(route.request().url()).hostname !== '127.0.0.1') {
       requests.push(route.request().url());
       return route.abort();
@@ -31,16 +36,20 @@ for (const language of ['en', 'ja']) {
     expect(image.data.some((value, index) => index % 4 === 3 && value > 0)).toBe(true);
     await page.locator('[data-expression="smile"]').click();
     expect(await page.evaluate(() => document.querySelector('mesh-avatar')!.avatar!.getExpression().name)).toBe('smile');
-    await page.locator('#emotion').selectOption('happy');
-    await page.locator('#emotion').selectOption('');
-    await page.locator('#paused').check();
-    expect(await page.evaluate(() => document.querySelector('mesh-avatar')!.paused)).toBe(true);
-    await page.locator('#paused').uncheck();
-    await page.locator('#no-idle').check();
-    await expect(page.locator('mesh-avatar')).toHaveAttribute('no-idle', '');
+    await expect(page.locator('#expression-code')).toHaveText('<mesh-avatar expression="smile"></mesh-avatar>');
+    await page.locator('[data-expression="neutral"]').click();
+    await expect(page.locator('#expression-code')).toHaveText('<mesh-avatar></mesh-avatar>');
+    expect(await page.evaluate(() => document.querySelector('mesh-avatar')!.avatar!.getExpression().name)).toBe('neutral');
+    await expect(page.locator('mesh-avatar')).not.toHaveAttribute('src');
+    const box = await page.locator('mesh-avatar').boundingBox();
+    expect(box!.width).toBeCloseTo(box!.height);
+    await expect(page.locator('#emotion, #paused, #no-idle, #audio-file, #microphone')).toHaveCount(0);
     await page.locator('#speech-text').fill('こんにちは、よろしくお願いします。');
     await page.locator('#speech-form button').click();
     expect(await page.evaluate(() => document.querySelector('mesh-avatar')!.avatar!.getLipSyncState().active)).toBe(true);
+    await expect(page.locator('#speech-code')).toHaveText("const el = document.querySelector('mesh-avatar');\nel.speak('こんにちは、よろしくお願いします。');");
+    await page.locator('#speech-text').fill("a'\\b</script>");
+    await expect(page.locator('#speech-code')).toHaveText("const el = document.querySelector('mesh-avatar');\nel.speak('a\\'\\\\b\\x3c/script>');");
 
     await page.evaluate(() => Reflect.set(window, 'previousAvatar', document.querySelector('mesh-avatar')!.avatar));
     const archive = await (await page.request.get(`${site}miko.mavatar`)).body();
@@ -49,9 +58,12 @@ for (const language of ['en', 'ja']) {
     });
     await expect(page.locator('#status')).toHaveAttribute('data-state', 'ready');
     await expect(page.locator('#source-name')).toHaveText('chosen.mavatar');
+    await expect(page.locator('#selected-file')).toContainText('chosen.mavatar');
+    await expect(page.locator('#file-code')).toHaveText('<mesh-avatar src="/path/to/your-avatar.mavatar"></mesh-avatar>');
     expect(await page.evaluate(() => document.querySelector('mesh-avatar')!.avatar !== Reflect.get(window, 'previousAvatar'))).toBe(true);
     await page.locator('#restore-miko').click();
     await expect(page.locator('#source-name')).toHaveText('Miko');
+    await expect(page.locator('#file-code')).toHaveText('<mesh-avatar></mesh-avatar>');
     await expect(page.locator('#status')).toHaveAttribute('data-state', 'ready');
 
     await page.locator('#avatar-file').setInputFiles({
@@ -64,95 +76,6 @@ for (const language of ['en', 'ja']) {
     expect(errors).toEqual([]);
   });
 }
-
-test('microphone input drives the mouth and stopping releases the stream', async ({ page }) => {
-  await page.addInitScript(() => {
-    Object.defineProperty(navigator.mediaDevices, 'getUserMedia', { value: async () => {
-      const ctx = new AudioContext();
-      await ctx.resume();
-      const oscillator = ctx.createOscillator();
-      const destination = ctx.createMediaStreamDestination();
-      oscillator.connect(destination);
-      oscillator.start();
-      const stream = destination.stream;
-      const track = stream.getAudioTracks()[0], stop = track.stop.bind(track);
-      track.stop = () => {
-        Reflect.set(window, 'microphoneStopped', true);
-        oscillator.stop();
-        void ctx.close();
-        stop();
-      };
-      return stream;
-    } });
-  });
-  await page.goto(`${site}embed/`);
-  await expect(page.locator('#status')).toHaveAttribute('data-state', 'ready');
-  await page.evaluate(() => {
-    const el = document.querySelector('mesh-avatar')!;
-    const set = el.setVoiceLevel.bind(el);
-    el.setVoiceLevel = value => {
-      Reflect.set(window, 'voiceLevel', value);
-      set(value);
-    };
-  });
-  await page.locator('#microphone').click();
-  await expect(page.locator('#microphone')).toHaveAttribute('aria-pressed', 'true');
-  await expect.poll(() => page.evaluate(() => Number(Reflect.get(window, 'voiceLevel')))).toBeGreaterThan(0.1);
-  await page.locator('#microphone').click();
-  await expect(page.locator('#microphone')).toHaveAttribute('aria-pressed', 'false');
-  expect(await page.evaluate(() => Reflect.get(window, 'microphoneStopped'))).toBe(true);
-  expect(await page.evaluate(() => Reflect.get(window, 'voiceLevel'))).toBe(0);
-});
-
-test('microphone denial leaves controls usable and shows a localized message', async ({ page }) => {
-  await page.addInitScript(() => {
-    Object.defineProperty(navigator.mediaDevices, 'getUserMedia', {
-      value: async () => { throw new DOMException('Denied', 'NotAllowedError'); },
-    });
-  });
-  await page.goto(`${site}ja/embed/`);
-  await expect(page.locator('#status')).toHaveAttribute('data-state', 'ready');
-  await page.locator('#microphone').click();
-  await expect(page.locator('#notice')).toContainText('マイクを開始できませんでした');
-  await expect(page.locator('#microphone')).toBeEnabled();
-  await expect(page.locator('#microphone')).toHaveAttribute('aria-pressed', 'false');
-});
-
-test('local audio drives mouth volume and resets it when playback stops', async ({ page }) => {
-  const sampleRate = 16000, samples = sampleRate * 2;
-  const wav = Buffer.alloc(44 + samples * 2);
-  wav.write('RIFF', 0);
-  wav.writeUInt32LE(wav.length - 8, 4);
-  wav.write('WAVEfmt ', 8);
-  wav.writeUInt32LE(16, 16);
-  wav.writeUInt16LE(1, 20);
-  wav.writeUInt16LE(1, 22);
-  wav.writeUInt32LE(sampleRate, 24);
-  wav.writeUInt32LE(sampleRate * 2, 28);
-  wav.writeUInt16LE(2, 32);
-  wav.writeUInt16LE(16, 34);
-  wav.write('data', 36);
-  wav.writeUInt32LE(samples * 2, 40);
-  for (let i = 0; i < samples; i++) wav.writeInt16LE(Math.round(Math.sin(i * 440 * 2 * Math.PI / sampleRate) * 10000), 44 + i * 2);
-  await page.goto(`${site}embed/`);
-  await expect(page.locator('#status')).toHaveAttribute('data-state', 'ready');
-  await page.evaluate(() => {
-    const el = document.querySelector('mesh-avatar')!;
-    const set = el.setVoiceLevel.bind(el);
-    el.setVoiceLevel = value => {
-      Reflect.set(window, 'voiceLevel', value);
-      set(value);
-    };
-  });
-  await page.locator('#audio-file').setInputFiles({ name: 'voice.wav', mimeType: 'audio/wav', buffer: wav });
-  // Give the Web Audio context a user gesture before programmatic playback.
-  await page.locator('#speech-form button').click();
-  await page.locator('audio').evaluate(async audio => { await (audio as HTMLAudioElement).play(); });
-  await expect.poll(() => page.evaluate(() => Number(Reflect.get(window, 'voiceLevel')))).toBeGreaterThan(0.1);
-  await page.locator('audio').evaluate(audio => (audio as HTMLAudioElement).pause());
-  await expect.poll(() => page.evaluate(() => Reflect.get(window, 'voiceLevel'))).toBe(0);
-  await expect(page.locator('#notice')).toHaveText('');
-});
 
 for (const example of ['basic', 'playground']) {
   test(`standalone ${example} example opens directly from disk`, async ({ page }) => {
