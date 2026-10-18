@@ -20,6 +20,7 @@
     "mesh-avatar"
   ],
   "sideEffects": [
+    "./src/index.ts",
     "./dist/index.js",
     "./dist/standalone.js"
   ],

@@ -96,6 +96,8 @@ export default defineConfig({
         ja: fromHere('./ja/index.html'),
         play: fromHere('./play/index.html'),
         'ja-play': fromHere('./ja/play/index.html'),
+        embed: fromHere('./embed/index.html'),
+        'ja-embed': fromHere('./ja/embed/index.html'),
       },
       output: { banner: `/*! fflate\n${fflateLicense}\n*/` },
     },

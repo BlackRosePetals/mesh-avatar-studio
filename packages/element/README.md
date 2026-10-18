@@ -64,7 +64,7 @@ The element defaults to `display: block; aspect-ratio: 3 / 4`. Set its width in 
 | `no-idle` | Boolean attribute; presence disables automatic idle motion | Absent |
 | `label` | Accessible canvas label | `Avatar` |
 
-Attributes can be changed after loading. Changing `src` or `fit` destroys the current avatar and loads a new one. A failed load leaves the element empty; listen for `error` to show a fallback. Unknown expression, emotion or fit values warn once per attribute/value pair rather than throwing.
+Attributes can be changed after loading. Changing `src` or `fit` destroys the current avatar and loads a new one. After `load(source)`, changing `fit` reloads that source; changing `src` switches back to the attribute URL. A failed load leaves the element empty; listen for `error` to show a fallback. Unknown expression, emotion or fit values warn once per attribute/value pair rather than throwing.
 
 ## Properties, methods and events
 
@@ -80,7 +80,8 @@ el.avatar.setExpression('smile');
 | Property or method | Description |
 | --- | --- |
 | `avatar` | Loaded runtime avatar, or `null`. All [runtime methods](https://github.com/shinshin86/mesh-avatar-studio/tree/main/packages/runtime#drive-the-avatar) are available through `el.avatar`. |
-| `ready` | Promise resolving with the current avatar, rejecting on loading failure. A new load after completion creates a new promise; overlapping pending loads resolve with the latest avatar. |
+| `load(source)` | Loads a File, Blob, ArrayBuffer, Uint8Array, URL or URL string without changing `src`. Returns the loading promise and emits `load` or `error`. The `AvatarSource` type is re-exported from `mesh-avatar`. |
+| `ready` | Promise resolving with the avatar for the current source, rejecting on loading failure. A new load after completion creates a new promise; overlapping pending loads resolve with the latest avatar. |
 | `src`, `fit`, `expression`, `emotion`, `paused` | Properties reflecting their corresponding attributes. Use attributes for `no-idle` and `label`. |
 | `setVoiceLevel(value)` | Mouth opening from loudness, 0–1. Retains the value until loading finishes. |
 | `speak(text, options?)` | Calls `speakKana` after loading. Japanese text animates the mouth without generating audio. Options: `speed`, `loop`. |
@@ -95,7 +96,35 @@ el.avatar.setExpression('smile');
 | `motion` | `{ id }` (string or `null`) | The runtime reports a motion change |
 
 Attach listeners directly to the element with `el.addEventListener('load', event => { /* … */ })`.
-Moving the element between parents in the same turn preserves the avatar. Removing it destroys the avatar; reconnecting it starts a new load.
+Moving the element between parents in the same turn preserves the avatar. Removing it destroys the avatar; reconnecting it reloads the last source, including a File passed to `load()`.
+
+To display a `.mavatar` chosen with a file input, pass the File directly rather than a `blob:` URL:
+
+```html
+<input id="avatar-file" type="file" accept=".mavatar">
+<mesh-avatar></mesh-avatar>
+<script type="module">
+await customElements.whenDefined('mesh-avatar');
+const el = document.querySelector('mesh-avatar');
+document.querySelector('#avatar-file').onchange = async event => {
+  const file = event.target.files[0];
+  if (!file) return;
+  try {
+    await el.load(file);
+  } catch (error) {
+    console.error('Could not load avatar:', error);
+  }
+};
+</script>
+```
+
+## Examples
+
+- [Basic embed](https://github.com/shinshin86/mesh-avatar-studio/blob/main/packages/element/examples/basic.html): two HTML lines and a CSS width.
+- [Playground](https://github.com/shinshin86/mesh-avatar-studio/blob/main/packages/element/examples/playground.html): expressions, text and audio lip sync, microphone input and your own avatar files.
+- [Interactive demo](https://shinshin86.github.io/mesh-avatar-studio/embed/) ([日本語](https://shinshin86.github.io/mesh-avatar-studio/ja/embed/)): try the controls in your browser.
+
+Download either HTML example and open it directly, or serve it on your site. Both load the element and Miko over the internet. Microphone access depends on browser permissions and secure-context support; use HTTPS or localhost if it is unavailable when opening a file directly. Examples are in the repository and are not included in the npm package.
 
 ## Lip sync
 

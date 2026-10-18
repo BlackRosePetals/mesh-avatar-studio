@@ -1,0 +1,338 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mesh Avatar playground</title>
+  <style>
+html { font-family: system-ui, sans-serif; color: #243348; background: #edf1f5; }
+* { box-sizing: border-box; }
+body { margin: 0; }
+:root { --ink: #243348; --muted: #64758a; --line: #d7dfe8; --surface: white; --accent: #2563eb; --accent-soft: #edf3ff; }
+button, input, select { font: inherit; }
+button:focus-visible, a:focus-visible { outline: 3px solid #2563eb; outline-offset: 3px; }
+.shell { width: min(960px, calc(100% - 32px)); margin: auto; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
+.expression-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+a { color: #2563eb; }
+footer { padding-block: 24px; font-size: 13px; line-height: 1.7; }
+.embed-page { padding-bottom: 40px; }
+.embed-page .site-header { min-height: 76px; }
+.embed-page .intro { padding-block: 36px 24px; }
+.embed-page h1 { font-size: clamp(30px, 4vw, 44px); letter-spacing: -1px; line-height: 1.25; }
+.embed-page .intro > p { max-width: 780px; color: var(--muted); line-height: 1.7; }
+.embed-page .code-card { margin-block: 16px; }
+.embed-page .code-card pre { padding-block: 12px; }
+.embed-layout { display: grid; grid-template-columns: minmax(240px, .8fr) minmax(0, 1.2fr); gap: 24px; align-items: start; margin-top: 28px; }
+.embed-stage, .control-panel { min-width: 0; padding: 20px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.embed-stage { position: sticky; top: 20px; text-align: center; }
+.embed-stage mesh-avatar { width: min(100%, 340px); margin: auto; background: #f7f9fc; border-radius: 8px; }
+.embed-stage #status { margin-bottom: 0; font-size: 14px; color: var(--muted); }
+.embed-stage #status[data-state='error'], #notice { color: #a52b2b; }
+.embed-stage #source-name { margin: 12px 0 0; font-size: 13px; overflow-wrap: anywhere; }
+.embed-panels { display: grid; gap: 16px; min-width: 0; }
+.control-panel h2, .control-panel legend { margin: 0 0 16px; font-size: 18px; font-weight: 650; letter-spacing: 0; }
+.control-panel label { display: block; margin-block: 12px 8px; font-size: 14px; }
+.control-panel .check { display: flex; align-items: center; gap: 8px; }
+.control-panel input[type='file'] { display: block; width: 100%; font-size: 13px; margin-bottom: 12px; }
+.control-panel input[type='text'], .control-panel select { width: 100%; min-height: 40px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; font: inherit; background: white; color: var(--ink); }
+.control-panel button { min-height: 40px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; background: white; color: var(--ink); cursor: pointer; }
+.control-panel button:hover:not(:disabled), .control-panel button[aria-pressed='true'] { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+.control-panel button:disabled { opacity: .5; cursor: default; }
+.control-panel audio { display: block; width: 100%; margin-block: 12px; }
+.control-panel form button { margin-top: 12px; }
+.control-panel .expression-chips { margin-bottom: 16px; }
+.control-panel .expression-chips button { flex: 0 0 auto; white-space: nowrap; }
+.control-panel .hint, .embed-privacy { color: var(--muted); font-size: 13px; line-height: 1.7; }
+#avatar-controls { display: grid; gap: 16px; }
+#notice { margin: 0; font-size: 14px; line-height: 1.6; }
+.embed-page input:focus-visible, .embed-page select:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+@media (max-width: 760px) {
+  .embed-page .shell { width: calc(100% - 32px); }
+  .embed-page .site-header { flex-wrap: wrap; padding-block: 16px; }
+  .embed-page .primary-nav { gap: 16px; }
+  .embed-layout { grid-template-columns: 1fr; }
+  .embed-stage { position: static; }
+  .embed-stage mesh-avatar { width: min(100%, 270px); }
+}
+  </style>
+</head>
+<body class="embed-page">
+  <main id="embed-playground" class="shell" data-loading="Loading avatar…" data-ready="Avatar ready" data-error="Could not load this avatar. Choose another file or return to Miko." data-audio-error="Could not play this audio file." data-mic-error="Could not start the microphone. Check browser permissions and use HTTPS or localhost." data-copy-error="Select and copy the code above.">
+    <section class="intro">
+      <h1>Mesh Avatar playground</h1>
+      <p>Try expressions, lip sync and your own .mavatar files.</p>
+    </section>
+    <div class="embed-layout">
+      <section class="embed-stage" aria-label="Avatar preview">
+        <mesh-avatar label="Miko"></mesh-avatar>
+        <p id="source-name">Miko</p>
+        <p id="status" role="status" data-state="loading">Loading avatar…</p>
+      </section>
+        <div class="embed-panels">
+          <section class="control-panel">
+            <h2>Avatar file</h2>
+            <label for="avatar-file">Choose a .mavatar file</label>
+            <input id="avatar-file" type="file" accept=".mavatar">
+            <button id="restore-miko" type="button">Return to Miko</button>
+          </section>
+          <fieldset id="avatar-controls" disabled>
+            <legend class="sr-only">Avatar controls</legend>
+            <section class="control-panel">
+              <h2>Expressions</h2>
+              <div class="expression-chips" role="group" aria-label="Expressions">
+                <button type="button" data-expression="neutral" aria-pressed="true">Neutral</button>
+                <button type="button" data-expression="smile" aria-pressed="false">Smile</button>
+                <button type="button" data-expression="shy" aria-pressed="false">Shy</button>
+                <button type="button" data-expression="surprise" aria-pressed="false">Surprise</button>
+                <button type="button" data-expression="halfLidded" aria-pressed="false">Half-lidded</button>
+                <button type="button" data-expression="angry" aria-pressed="false">Angry</button>
+                <button type="button" data-expression="sad" aria-pressed="false">Sad</button>
+                <button type="button" data-expression="wink" aria-pressed="false">Wink</button>
+              </div>
+              <label for="emotion">Emotion</label>
+              <select id="emotion"><option value="">None</option><option value="happy">Happy</option><option value="sad">Sad</option><option value="angry">Angry</option><option value="surprised">Surprised</option><option value="relaxed">Relaxed</option><option value="neutral">Neutral</option></select>
+              <label class="check"><input id="paused" type="checkbox">Pause animation</label>
+              <label class="check"><input id="no-idle" type="checkbox">Disable idle motion</label>
+            </section>
+            <section class="control-panel">
+              <h2>Text lip sync</h2>
+              <form id="speech-form">
+                <label for="speech-text">Japanese text</label>
+                <input id="speech-text" type="text" value="こんにちは" maxlength="300">
+                <button type="submit">Animate speech</button>
+              </form>
+              <p class="hint">Mouth animation only. No voice is generated.</p>
+            </section>
+            <section class="control-panel">
+              <h2>Audio lip sync</h2>
+              <label for="audio-file">Choose an audio file</label>
+              <input id="audio-file" type="file" accept="audio/*">
+              <audio controls aria-label="Audio lip sync"></audio>
+              <button id="microphone" type="button" aria-pressed="false" data-start="Start microphone" data-stop="Stop microphone">Start microphone</button>
+            </section>
+          </fieldset>
+          <p id="notice" role="status"></p>
+          <p class="embed-privacy">Avatar files, audio files and microphone audio are processed in your browser and are not uploaded.</p>
+        </div>
+    </div>
+  </main>
+  <footer class="shell"><p>Miko © Yuki Shindo (AITuber OnAir). <a href="https://miko.aituberonair.com/#terms">Miko character guidelines</a></p></footer>
+  <script type="module">
+import 'https://cdn.jsdelivr.net/npm/mesh-avatar-element@0/dist/standalone.js';
+
+// Kept inline in the standalone example so it can also open directly from disk.
+function setupPlayground(root, { sampleURL }) {
+  const el = root.querySelector('mesh-avatar');
+  const status = root.querySelector('#status');
+  const sourceName = root.querySelector('#source-name');
+  const controls = root.querySelector('#avatar-controls');
+  const audio = root.querySelector('audio');
+  const micButton = root.querySelector('#microphone');
+  const notice = root.querySelector('#notice');
+  let context;
+  let audioAnalyser;
+  let audioURL;
+  let microphone;
+  let microphoneSource;
+  let microphoneRequest = 0;
+  let voiceFrame = 0;
+
+  function stopVoice() {
+    cancelAnimationFrame(voiceFrame);
+    voiceFrame = 0;
+    el.avatar?.setSpeaking(false);
+    el.setVoiceLevel(0);
+  }
+
+  function stopMicrophone() {
+    microphoneRequest++;
+    microphone?.getTracks().forEach(track => track.stop());
+    microphone = undefined;
+    microphoneSource?.disconnect();
+    microphoneSource = undefined;
+    micButton.disabled = false;
+    micButton.textContent = micButton.dataset.start;
+    micButton.setAttribute('aria-pressed', 'false');
+    stopVoice();
+  }
+
+  function followVolume(analyser) {
+    stopVoice();
+    el.avatar?.stopLipSync();
+    el.avatar?.setSpeaking(true);
+    const data = new Float32Array(analyser.fftSize);
+    const frame = () => {
+      analyser.getFloatTimeDomainData(data);
+      const rms = Math.sqrt(data.reduce((sum, value) => sum + value * value, 0) / data.length);
+      el.setVoiceLevel(Math.min(1, rms * 5));
+      voiceFrame = requestAnimationFrame(frame);
+    };
+    frame();
+  }
+
+  function audioContext() {
+    context ??= new AudioContext();
+    return context;
+  }
+
+  function loading(name) {
+    audio.pause();
+    stopMicrophone();
+    sourceName.textContent = name;
+    status.textContent = root.dataset.loading;
+    status.dataset.state = 'loading';
+    controls.disabled = true;
+    notice.textContent = '';
+  }
+
+  function ready() {
+    status.textContent = root.dataset.ready;
+    status.dataset.state = 'ready';
+    controls.disabled = false;
+  }
+
+  el.addEventListener('load', ready);
+  el.addEventListener('error', () => {
+    status.textContent = root.dataset.error;
+    status.dataset.state = 'error';
+    controls.disabled = true;
+  });
+  // Also cover callers that initialize controls after the avatar has loaded.
+  if (el.avatar) ready();
+
+  for (const button of root.querySelectorAll('[data-expression]')) {
+    button.addEventListener('click', () => {
+      el.expression = button.dataset.expression;
+      for (const chip of root.querySelectorAll('[data-expression]')) {
+        chip.setAttribute('aria-pressed', String(chip === button));
+      }
+    });
+  }
+  root.querySelector('#emotion').addEventListener('change', event => {
+    el.emotion = event.target.value || null;
+  });
+  root.querySelector('#paused').addEventListener('change', event => {
+    el.paused = event.target.checked;
+  });
+  root.querySelector('#no-idle').addEventListener('change', event => {
+    el.toggleAttribute('no-idle', event.target.checked);
+  });
+
+  root.querySelector('#speech-form').addEventListener('submit', event => {
+    event.preventDefault();
+    audio.pause();
+    stopMicrophone();
+    void el.speak(root.querySelector('#speech-text').value).catch(() => {
+      notice.textContent = root.dataset.error;
+    });
+  });
+
+  root.querySelector('#avatar-file').addEventListener('change', event => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    loading(file.name);
+    void el.load(file).catch(() => {});
+    event.target.value = '';
+  });
+  root.querySelector('#restore-miko').addEventListener('click', () => {
+    loading('Miko');
+    // Setting an unchanged src or removing an absent attribute would not reload.
+    void el.load(sampleURL).catch(() => {});
+    root.querySelector('#avatar-file').value = '';
+  });
+
+  root.querySelector('#audio-file').addEventListener('change', event => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    audio.pause();
+    stopMicrophone();
+    if (audioURL) URL.revokeObjectURL(audioURL);
+    audioURL = URL.createObjectURL(file);
+    audio.src = audioURL;
+    notice.textContent = '';
+  });
+  audio.addEventListener('play', async () => {
+    stopMicrophone();
+    try {
+      const ctx = audioContext();
+      audioAnalyser ??= ctx.createAnalyser();
+      if (!audio.dataset.connected) {
+        ctx.createMediaElementSource(audio).connect(audioAnalyser);
+        audioAnalyser.connect(ctx.destination);
+        audio.dataset.connected = 'true';
+      }
+      await ctx.resume();
+      if (!audio.paused && !audio.ended) followVolume(audioAnalyser);
+    } catch {
+      audio.pause();
+      notice.textContent = root.dataset.audioError;
+    }
+  });
+  for (const event of ['pause', 'ended']) audio.addEventListener(event, () => {
+    if (!microphone) stopVoice();
+  });
+  audio.addEventListener('error', () => {
+    if (audio.getAttribute('src')) notice.textContent = root.dataset.audioError;
+    if (!microphone) stopVoice();
+  });
+
+  micButton.addEventListener('click', async () => {
+    if (microphone) {
+      stopMicrophone();
+      return;
+    }
+    audio.pause();
+    stopVoice();
+    notice.textContent = '';
+    const request = ++microphoneRequest;
+    micButton.disabled = true;
+    try {
+      const ctx = audioContext();
+      await ctx.resume();
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      if (request !== microphoneRequest) {
+        stream.getTracks().forEach(track => track.stop());
+        return;
+      }
+      microphone = stream;
+      const analyser = ctx.createAnalyser();
+      microphoneSource = ctx.createMediaStreamSource(stream);
+      microphoneSource.connect(analyser);
+      followVolume(analyser);
+      micButton.textContent = micButton.dataset.stop;
+      micButton.setAttribute('aria-pressed', 'true');
+    } catch {
+      if (request === microphoneRequest) {
+        stopMicrophone();
+        notice.textContent = root.dataset.micError;
+      }
+    } finally {
+      if (request === microphoneRequest) micButton.disabled = false;
+    }
+  });
+
+  root.querySelector('#copy-snippet')?.addEventListener('click', async event => {
+    try {
+      await navigator.clipboard.writeText(root.querySelector('#embed-code').textContent);
+      event.target.textContent = event.target.dataset.copied;
+    } catch {
+      notice.textContent = root.dataset.copyError;
+    }
+  });
+
+  window.addEventListener('pagehide', () => {
+    audio.pause();
+    stopMicrophone();
+    if (audioURL) URL.revokeObjectURL(audioURL);
+    if (context) void context.close();
+  }, { once: true });
+}
+
+setupPlayground(document.querySelector('#embed-playground'), {
+  sampleURL: 'https://shinshin86.github.io/mesh-avatar-studio/miko.mavatar',
+});
+  </script>
+</body>
+</html>

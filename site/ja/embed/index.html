@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta http-equiv="Content-Security-Policy" content="connect-src 'self' blob: data: ws://127.0.0.1:* ws://localhost:*; img-src 'self' blob: data:; media-src 'self' blob:; object-src 'none'; base-uri 'self'">
+    <meta name="description" content="表情や口パクを試したり、自分のアバターを表示したりできます。src 属性を省くと、同じ Miko が GitHub Pages から読み込まれます。">
+    <title>Mesh Avatar — HTML の埋め込みを試す</title>
+    <link rel="canonical" href="https://shinshin86.github.io/mesh-avatar-studio/ja/embed/">
+    <link rel="alternate" hreflang="en" href="https://shinshin86.github.io/mesh-avatar-studio/embed/">
+    <link rel="alternate" hreflang="ja" href="https://shinshin86.github.io/mesh-avatar-studio/ja/embed/">
+    <link rel="alternate" hreflang="x-default" href="https://shinshin86.github.io/mesh-avatar-studio/embed/">
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+    <script type="module" src="/src/embed/main.ts"></script>
+  </head>
+  <body class="embed-page">
+    <header class="site-header shell">
+      <a class="brand" href="../">Mesh Avatar Studio</a>
+      <nav class="primary-nav" aria-label="ページの案内">
+        <a class="header-link" href="../">ホーム</a>
+        <a class="header-link language-switch" href="../../embed/" lang="en">English</a>
+      </nav>
+    </header>
+    <main id="embed-playground" class="shell" data-loading="読み込み中…" data-ready="アバターを読み込みました" data-error="読み込めませんでした。別のファイルを選ぶか、Miko に戻してください。" data-audio-error="この音声ファイルを再生できませんでした。" data-mic-error="マイクを開始できませんでした。ブラウザのアクセス許可を確認し、HTTPS または localhost で開いてください。" data-copy-error="上のコードを選択してコピーしてください。">
+      <section class="intro" aria-labelledby="embed-title">
+        <p class="eyebrow">mesh-avatar-element</p>
+        <h1 id="embed-title">HTML の埋め込みを試す</h1>
+        <p>表情や口パクを試したり、自分のアバターを表示したりできます。src 属性を省くと、同じ Miko が GitHub Pages から読み込まれます。</p>
+        <div class="code-card">
+          <div class="code-heading">
+            <h2>自分のページに埋め込む <span>HTML</span></h2>
+            <button id="copy-snippet" type="button" class="copy-button" data-copied="コピー済み">コピー</button>
+          </div>
+          <pre tabindex="0"><code id="embed-code">&lt;script type="module" src="https://cdn.jsdelivr.net/npm/mesh-avatar-element@0/dist/standalone.js"&gt;&lt;/script&gt;
+&lt;mesh-avatar&gt;&lt;/mesh-avatar&gt;</code></pre>
+        </div>
+        <a class="text-link" href="https://github.com/shinshin86/mesh-avatar-studio/tree/main/packages/element">使い方を見る（英語） ↗</a>
+      </section>
+      <div class="embed-layout">
+        <section class="embed-stage" aria-label="アバターのプレビュー">
+          <mesh-avatar src="%BASE_URL%miko.mavatar" label="Miko"></mesh-avatar>
+          <p id="source-name">Miko</p>
+          <p id="status" role="status" data-state="loading">読み込み中…</p>
+        </section>
+        <div class="embed-panels">
+          <section class="control-panel">
+            <h2>アバター</h2>
+            <label for="avatar-file">.mavatar ファイルを選ぶ</label>
+            <input id="avatar-file" type="file" accept=".mavatar">
+            <button id="restore-miko" type="button">Miko に戻す</button>
+          </section>
+          <fieldset id="avatar-controls" disabled>
+            <legend class="sr-only">アバターの操作</legend>
+            <section class="control-panel">
+              <h2>表情</h2>
+              <div class="expression-chips" role="group" aria-label="表情">
+                <button type="button" data-expression="neutral" aria-pressed="true">ふつう</button>
+                <button type="button" data-expression="smile" aria-pressed="false">笑顔</button>
+                <button type="button" data-expression="shy" aria-pressed="false">照れ</button>
+                <button type="button" data-expression="surprise" aria-pressed="false">驚き</button>
+                <button type="button" data-expression="halfLidded" aria-pressed="false">半目</button>
+                <button type="button" data-expression="angry" aria-pressed="false">怒り</button>
+                <button type="button" data-expression="sad" aria-pressed="false">悲しみ</button>
+                <button type="button" data-expression="wink" aria-pressed="false">ウインク</button>
+              </div>
+              <label for="emotion">感情</label>
+              <select id="emotion"><option value="">指定なし</option><option value="happy">喜び</option><option value="sad">悲しみ</option><option value="angry">怒り</option><option value="surprised">驚き</option><option value="relaxed">リラックス</option><option value="neutral">ふつう</option></select>
+              <label class="check"><input id="paused" type="checkbox">動きを止める</label>
+              <label class="check"><input id="no-idle" type="checkbox">待機動作を使わない</label>
+            </section>
+            <section class="control-panel">
+              <h2>文章で口を動かす</h2>
+              <form id="speech-form">
+                <label for="speech-text">日本語の文章</label>
+                <input id="speech-text" type="text" value="こんにちは" maxlength="300">
+                <button type="submit">口を動かす</button>
+              </form>
+              <p class="hint">口の動きだけを試せます。音声は流れません。</p>
+            </section>
+            <section class="control-panel">
+              <h2>音声に合わせて口を動かす</h2>
+              <label for="audio-file">音声ファイルを選ぶ</label>
+              <input id="audio-file" type="file" accept="audio/*">
+              <audio controls aria-label="音声に合わせて口を動かす"></audio>
+              <button id="microphone" type="button" aria-pressed="false" data-start="マイクを開始" data-stop="マイクを停止">マイクを開始</button>
+            </section>
+          </fieldset>
+          <p id="notice" role="status"></p>
+          <p class="embed-privacy">選んだアバターや音声ファイル、マイクの音声はブラウザ内で処理し、外部には送信しません。</p>
+        </div>
+      </div>
+    </main>
+    <footer class="site-footer shell">
+      <p>Miko © Yuki Shindo (AITuber OnAir). <a href="https://miko.aituberonair.com/#terms">Miko キャラクター利用ガイドライン</a></p>
+    </footer>
+  </body>
+</html>

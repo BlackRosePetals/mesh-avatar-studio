@@ -163,3 +163,52 @@ test('unknown expression warns once without throwing or changing the expression'
   expect(errors).toEqual([]);
   expect(await page.evaluate(() => document.querySelector('mesh-avatar')!.avatar!.getExpression().name)).toBe('smile');
 });
+
+test('load accepts a File, retains it for fit and reconnection, and src restores URL loading', async ({ page }) => {
+  await open(page);
+  const before = await page.evaluate(() => Reflect.get(window, 'loads'));
+  expect(await page.evaluate(async url => {
+    const el = document.querySelector('mesh-avatar')!;
+    const old = el.avatar;
+    const blob = await (await fetch(url)).blob();
+    const pending = el.load(new File([blob], 'chosen.mavatar'));
+    return pending === el.ready && await pending !== old && el.getAttribute('src') === null;
+  }, sample)).toBe(true);
+  await drawn(page);
+  // If fit or reconnection forgets the File, a fallback URL load will now fail.
+  await page.route(defaultSrc, route => route.abort());
+  await page.locator('mesh-avatar').evaluate(async el => {
+    const avatar = el as MeshAvatarElement;
+    avatar.fit = 'cover';
+    await avatar.ready;
+    avatar.remove();
+    await Promise.resolve();
+    document.querySelector('#first')!.appendChild(avatar);
+    await avatar.ready;
+  });
+  await expect.poll(() => page.evaluate(() => Reflect.get(window, 'loads'))).toBe(before + 3);
+  expect(await page.evaluate(async url => {
+    const el = document.querySelector('mesh-avatar')!;
+    const old = el.avatar;
+    el.src = url;
+    return await el.ready !== old && el.src === url;
+  }, sample + '?after-file')).toBe(true);
+  await drawn(page);
+});
+
+test('load rejects broken archive data, emits error and recovers from a subsequent load', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await open(page);
+  expect(await page.evaluate(async url => {
+    const el = document.querySelector('mesh-avatar')!;
+    let rejected = false;
+    try { await el.load(new Blob(['broken'])); } catch { rejected = true; }
+    const empty = el.avatar === null;
+    await el.load(new URL(url));
+    return rejected && empty && !!el.avatar;
+  }, sample)).toBe(true);
+  expect(await page.evaluate(() => Reflect.get(window, 'errors'))).toBe(1);
+  expect(errors).toEqual([]);
+  await drawn(page);
+});

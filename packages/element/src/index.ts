@@ -1,9 +1,9 @@
-import { loadMeshAvatar, type MeshAvatar } from 'mesh-avatar';
+import { loadMeshAvatar, type AvatarSource, type MeshAvatar } from 'mesh-avatar';
 import { DEFAULT_SRC, frameSeconds, parseEmotion, parseExpression, parseFit, ReadySignal, type Fit } from './attributes.js';
 
 export { DEFAULT_SRC, EMOTIONS } from './attributes.js';
 export type { Emotion, Fit } from './attributes.js';
-export type { MeshAvatar, LiveExpression } from 'mesh-avatar';
+export type { AvatarSource, MeshAvatar, LiveExpression } from 'mesh-avatar';
 
 const STYLE = `
 :host { display: block; position: relative; aspect-ratio: 3 / 4; }
@@ -26,6 +26,7 @@ export class MeshAvatarElement extends Base {
   #ready = new ReadySignal<MeshAvatar>();
   #loadId = 0;
   #loading = false;
+  #source: AvatarSource | undefined;
   #raf = 0;
   #previous = 0;
   #onScreen = true;
@@ -49,8 +50,15 @@ export class MeshAvatarElement extends Base {
 
   /** The loaded runtime avatar, or null while loading. Every `mesh-avatar` method is available on it. */
   get avatar() { return this.#avatar; }
-  /** Resolves with the avatar once the current `src` has loaded. */
+  /** Resolves with the avatar once the current source has loaded. */
   get ready() { return this.#ready.promise; }
+
+  /** Loads a file, archive or URL without changing `src`. A changed `src` replaces this source. */
+  load(source: AvatarSource): Promise<MeshAvatar> {
+    this.#source = source;
+    void this.#load();
+    return this.ready;
+  }
 
   get src() { return this.getAttribute('src') ?? ''; }
   set src(value: string) { this.setAttribute('src', value); }
@@ -101,6 +109,7 @@ export class MeshAvatarElement extends Base {
   attributeChangedCallback(name: string, old: string | null, value: string | null) {
     if (old === value) return;
     if (name === 'src' || name === 'fit') {
+      if (name === 'src') this.#source = undefined;
       if (name === 'fit' && parseFit(value) === undefined) this.#warn(name, value);
       if (this.isConnected) this.#load();
     } else if (name === 'label') {
@@ -124,13 +133,13 @@ export class MeshAvatarElement extends Base {
     }
   }
 
-  async #load() {
+  async #load(source: AvatarSource = this.#source ?? (this.getAttribute('src') || DEFAULT_SRC)) {
     const id = ++this.#loadId;
     this.#unload(false);
     this.#loading = true;
     this.#ready.start();
     try {
-      const avatar = await loadMeshAvatar(this.#canvas, this.getAttribute('src') || DEFAULT_SRC, { manual: true, fit: this.fit });
+      const avatar = await loadMeshAvatar(this.#canvas, source, { manual: true, fit: this.fit });
       if (id !== this.#loadId) { avatar.destroy(); return; }
       this.#loading = false;
       this.#avatar = avatar;
