@@ -18,6 +18,7 @@ npm run lint
 npm test
 npm run build
 npm run build:runtime
+npm run build:element
 npm run e2e
 uv run --with numpy --with pillow --with opencv-python-headless tools/test_build_layers.py
 uv run tools/test_agent_tools.py

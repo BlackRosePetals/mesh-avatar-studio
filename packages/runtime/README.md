@@ -9,6 +9,8 @@ A WebGL runtime for 2D mesh avatars created with [Mesh Avatar Studio](https://gi
 To move an avatar with your own face and voice without installing anything, open the
 [Player](https://shinshin86.github.io/mesh-avatar-studio/play/) in Chrome or Edge.
 
+To embed an avatar with HTML, use [mesh-avatar-element](https://github.com/shinshin86/mesh-avatar-studio/tree/main/packages/element). It provides a `<mesh-avatar>` custom element and a standalone CDN script.
+
 ## Install
 
 ```sh

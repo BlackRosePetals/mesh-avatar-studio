@@ -199,6 +199,20 @@
         </div>
         <p class="section-note">どちらの画面もローカルの開発サーバーで動きます。配信中は、操作画面を専用のウィンドウで開いたままにしてください。セットアップなしで試すなら、<a href="./play/">Player</a> で .mavatar ファイルをブラウザ上でカメラとマイクで動かし、OBS のウィンドウキャプチャで取り込めます。<a href="https://github.com/shinshin86/mesh-avatar-studio/blob/main/docs/reference.md#live-and-streaming">配信の詳しい使い方（英語）<span aria-hidden="true">↗</span></a></p>
       </section>
+      <section id="embed-html" class="content-section" aria-labelledby="embed-html-title">
+        <div class="section-heading">
+          <p class="eyebrow">埋め込む</p>
+          <h2 id="embed-html-title">HTML を貼って埋め込む</h2>
+          <p>次の2行をページに貼ると、Miko が表示されます。自分のアバターを使う場合は、書き出した .mavatar ファイルを src 属性に指定してください。</p>
+        </div>
+        <div class="code-card">
+          <div class="code-heading"><h3>mesh-avatar-element <span>HTML</span></h3><button type="button" class="copy-button" data-copy="element-code" aria-describedby="element-feedback" disabled>コピー</button></div>
+          <pre tabindex="0" aria-label="埋め込み用の HTML"><code id="element-code" data-lang="html">&lt;script type="module" src="https://cdn.jsdelivr.net/npm/mesh-avatar-element@0/dist/standalone.js"&gt;&lt;/script&gt;
+&lt;mesh-avatar&gt;&lt;/mesh-avatar&gt;</code></pre>
+          <p id="element-feedback" class="copy-feedback" role="status"></p>
+        </div>
+        <p class="section-note"><a href="https://github.com/shinshin86/mesh-avatar-studio/tree/main/packages/element">サイズの指定・口パクの使い方（英語） <span aria-hidden="true">↗</span></a></p>
+      </section>
       <section id="embed" class="content-section" aria-labelledby="embed-title">
         <div class="section-heading">
           <p class="eyebrow">mesh-avatar で組み込む</p>

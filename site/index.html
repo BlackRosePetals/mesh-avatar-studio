@@ -199,6 +199,20 @@
         </div>
         <p class="section-note">Both views use the local development server. Keep the Live page open in its own window while streaming. Without any setup, the <a href="./play/">Player</a> moves a .mavatar file with your camera and microphone in the browser, for OBS Window Capture. <a href="https://github.com/shinshin86/mesh-avatar-studio/blob/main/docs/reference.md#live-and-streaming">Streaming guide <span aria-hidden="true">↗</span></a></p>
       </section>
+      <section id="embed-html" class="content-section" aria-labelledby="embed-html-title">
+        <div class="section-heading">
+          <p class="eyebrow">Embed</p>
+          <h2 id="embed-html-title">Embed with HTML</h2>
+          <p>Paste these two lines into your page to show Miko. To use your own avatar, set the src attribute to an exported .mavatar file.</p>
+        </div>
+        <div class="code-card">
+          <div class="code-heading"><h3>mesh-avatar-element <span>HTML</span></h3><button type="button" class="copy-button" data-copy="element-code" aria-describedby="element-feedback" disabled>Copy</button></div>
+          <pre tabindex="0" aria-label="Avatar embed HTML"><code id="element-code" data-lang="html">&lt;script type="module" src="https://cdn.jsdelivr.net/npm/mesh-avatar-element@0/dist/standalone.js"&gt;&lt;/script&gt;
+&lt;mesh-avatar&gt;&lt;/mesh-avatar&gt;</code></pre>
+          <p id="element-feedback" class="copy-feedback" role="status"></p>
+        </div>
+        <p class="section-note"><a href="https://github.com/shinshin86/mesh-avatar-studio/tree/main/packages/element">Sizing, lip sync and more <span aria-hidden="true">↗</span></a></p>
+      </section>
       <section id="embed" class="content-section" aria-labelledby="embed-title">
         <div class="section-heading">
           <p class="eyebrow">Embed with mesh-avatar</p>

@@ -10,6 +10,7 @@ import { mediapipeAssets } from '../src/server/mediapipe-assets';
 
 const fromHere = (path: string) => fileURLToPath(new URL(path, import.meta.url));
 const base = '/mesh-avatar-studio/';
+// External mesh-avatar-element embeds use this path as their default src; keep it stable.
 const avatarFile = 'miko.mavatar';
 const publishedUrl = `https://shinshin86.github.io${base}`;
 
