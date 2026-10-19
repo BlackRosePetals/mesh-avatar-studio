@@ -10,6 +10,7 @@ import { mediapipeAssets } from '../src/server/mediapipe-assets';
 
 const fromHere = (path: string) => fileURLToPath(new URL(path, import.meta.url));
 const base = '/mesh-avatar-studio/';
+// External mesh-avatar-element embeds use this path as their default src; keep it stable.
 const avatarFile = 'miko.mavatar';
 const publishedUrl = `https://shinshin86.github.io${base}`;
 
@@ -95,6 +96,8 @@ export default defineConfig({
         ja: fromHere('./ja/index.html'),
         play: fromHere('./play/index.html'),
         'ja-play': fromHere('./ja/play/index.html'),
+        embed: fromHere('./embed/index.html'),
+        'ja-embed': fromHere('./ja/embed/index.html'),
       },
       output: { banner: `/*! fflate\n${fflateLicense}\n*/` },
     },

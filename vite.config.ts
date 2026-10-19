@@ -22,5 +22,5 @@ export default defineConfig({
   }],
   publicDir: 'samples',
   build: { rollupOptions: { input: { editor: 'index.html', stream: 'stream.html', live: 'live.html' } } },
-  test: { include: ['tests/**/*.test.ts', 'packages/runtime/tests/**/*.test.ts'] },
+  test: { include: ['tests/**/*.test.ts', 'packages/runtime/tests/**/*.test.ts', 'packages/element/tests/**/*.test.ts'] },
 });

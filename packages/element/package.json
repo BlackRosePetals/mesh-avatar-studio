@@ -1,0 +1,51 @@
+{
+  "name": "mesh-avatar-element",
+  "version": "0.0.0",
+  "type": "module",
+  "license": "MIT",
+  "description": "A <mesh-avatar> custom element: put a Mesh Avatar Studio avatar on any web page with one tag.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/shinshin86/mesh-avatar-studio.git",
+    "directory": "packages/element"
+  },
+  "homepage": "https://github.com/shinshin86/mesh-avatar-studio/tree/main/packages/element",
+  "keywords": [
+    "avatar",
+    "2d",
+    "webgl",
+    "web-components",
+    "custom-element",
+    "vtuber",
+    "mesh-avatar"
+  ],
+  "sideEffects": [
+    "./src/index.ts",
+    "./dist/index.js",
+    "./dist/standalone.js"
+  ],
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "vite build && vite build --mode standalone && tsc -p tsconfig.build.json",
+    "prepack": "npm run build"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./standalone": "./dist/standalone.js"
+  },
+  "dependencies": {
+    "mesh-avatar": "^0.2.1"
+  }
+}

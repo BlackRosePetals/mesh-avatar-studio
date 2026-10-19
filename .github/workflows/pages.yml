@@ -7,6 +7,7 @@ on:
       - 'site/**'
       - 'docs/images/**'
       - 'packages/runtime/src/**'
+      - 'packages/element/**'
       - 'samples/miko-qipao/**'
       # The Player page reuses Studio's Live, lighting and tracking files.
       - 'src/live/**'

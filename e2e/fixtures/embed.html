@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Mesh avatar element test</title>
+  <style>mesh-avatar { width: 300px; } #spacer { height: 2000px; }</style>
+</head>
+<body>
+  <div id="first"><mesh-avatar expression="smile"></mesh-avatar></div>
+  <div id="second"></div>
+  <div id="spacer"></div>
+  <script>
+    window.loads = 0;
+    window.errors = 0;
+    const el = document.querySelector('mesh-avatar');
+    el.addEventListener('load', event => { window.loads++; window.loadedAvatar = event.detail.avatar; });
+    el.addEventListener('error', () => { window.errors++; });
+  </script>
+  <script type="module" src="/packages/element/src/index.ts"></script>
+</body>
+</html>
