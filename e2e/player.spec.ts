@@ -36,7 +36,8 @@ async function fakeTracking(page: Page) {
       return { faceLandmarks: [[]], facialTransformationMatrixes: [{ data: [c,0,-s,0,0,1,0,0,s,0,c,0,0,0,0,1] }], faceBlendshapes: [{ categories: [] }] };
     } }) };` }));
 }
-const ready = (page: Page, name: string) => expect(page.getByTestId('player-status')).toHaveText(new RegExp(`· ${name.replace(/[().]/g, '\\$&')}$`));
+// Waits until the named avatar has finished loading, not just until it is the current source.
+const ready = (page: Page, name: string) => expect(page.getByTestId('player-status')).toHaveText(`Avatar ready · ${name}`);
 
 test('player runs the sample with face tracking in the browser and makes no outside requests', async ({ context, page }) => {
   const outside = await guardNetwork(context);
@@ -68,7 +69,10 @@ test('player opens a dropped or chosen .mavatar and recovers from a broken file'
   await ready(page, 'Miko (sample)');
   const archive = await (await page.request.get(`${site}miko.mavatar`)).body();
   await page.getByTestId('player-file').setInputFiles({ name: 'mine.mavatar', mimeType: 'application/octet-stream', buffer: archive });
-  await ready(page, 'mine.mavatar').catch(error => { throw new Error(`${error}\nPage log:\n${messages.join('\n')}`); });
+  await ready(page, 'mine.mavatar').catch(async error => {
+    const notice = await page.getByTestId('player-notice').textContent().catch(() => null);
+    throw new Error(`${error}\nNotice: ${notice}\nPage log:\n${messages.join('\n')}`);
+  });
   await expect(page.getByText('Miko © Yuki Shindo')).toHaveCount(0);
   await page.getByTestId('player-file').setInputFiles({ name: 'broken.mavatar', mimeType: 'application/octet-stream', buffer: Buffer.from('not an avatar') });
   await expect(page.getByTestId('player-notice')).toContainText('Could not open this file');
@@ -81,6 +85,21 @@ test('player opens a dropped or chosen .mavatar and recovers from a broken file'
   await ready(page, 'dropped.mavatar');
   await page.getByRole('button', { name: 'Use the sample' }).click();
   await ready(page, 'Miko (sample)');
+});
+
+test('player opens a file chosen while the sample is still loading', async ({ page }) => {
+  const archive = await (await page.request.get(`${site}miko.mavatar`)).body();
+  // Hold the sample download so the chosen file always starts loading first.
+  let release!: () => void;
+  const held = new Promise<void>(resolve => { release = resolve; });
+  await page.route('**/miko.mavatar', async route => { await held; await route.continue(); });
+  await page.goto(`${site}play/`);
+  await expect(page.getByTestId('player-status')).toHaveText('Loading avatar… · Miko (sample)');
+  await page.getByTestId('player-file').setInputFiles({ name: 'early.mavatar', mimeType: 'application/octet-stream', buffer: archive });
+  await expect(page.getByTestId('player-status')).toHaveText(/· early\.mavatar$/);
+  release();
+  await ready(page, 'early.mavatar');
+  await expect(page.getByTestId('player-notice')).toHaveCount(0);
 });
 
 test('player shows only the avatar on an exact key colour for a window capture', async ({ page }) => {
