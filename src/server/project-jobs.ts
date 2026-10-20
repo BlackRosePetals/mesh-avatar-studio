@@ -9,8 +9,13 @@ export class JobError extends Error {
   constructor(public code: 'dependencies' | 'toolFailed' | 'unsafeFiles', public log: string) { super(code); }
 }
 export type Runner = (root: string, project: string, tool: Tool) => Promise<string>;
+// opencv-python-headless has no prebuilt wheel for free-threaded builds, so an
+// unconstrained ">=3.10" can resolve to a managed cpython-3.14+freethreaded
+// interpreter (uv's newest match on a machine with nothing cached yet) and fail
+// the pip install. CI already pins 3.12 for the same reason; keep this in sync.
+const PYTHON_SPEC = '>=3.10,<3.14';
 export const runTool: Runner = (root, project, tool) => new Promise((done, reject) => {
-  const args = ['run', '--no-project', '--no-python-downloads', '--python', '>=3.10', '--with', 'numpy', '--with', 'pillow', '--with', 'opencv-python-headless', resolve(root, `tools/${tool}.py`), project];
+  const args = ['run', '--no-project', '--no-python-downloads', '--python', PYTHON_SPEC, '--with', 'numpy', '--with', 'pillow', '--with', 'opencv-python-headless', resolve(root, `tools/${tool}.py`), project];
   execFile('uv', args, { cwd: root, timeout: 120_000, maxBuffer: 2 * 1024 * 1024 }, (error, stdout, stderr) => {
     const log = `${stdout}\n${stderr}`.replaceAll(root, '<repo>').replaceAll(homedir(), '~').trim().slice(-12000);
     if (!error) { done(log); return; }
