@@ -2,6 +2,8 @@
 
 Embed an animated 2D avatar with a `<mesh-avatar>` HTML element. Uses the [mesh-avatar](https://github.com/shinshin86/mesh-avatar-studio/tree/main/packages/runtime) WebGL runtime, with no framework required.
 
+For React and Next.js, use [mesh-avatar-react](https://github.com/shinshin86/mesh-avatar-studio/tree/main/packages/react).
+
 <p align="center">
   <img src="https://raw.githubusercontent.com/shinshin86/mesh-avatar-studio/main/docs/images/face-tracking.gif" width="400" alt="A Mesh Avatar Studio avatar following a face through a webcam">
 </p>
@@ -67,7 +69,7 @@ The element defaults to `display: block; aspect-ratio: 1 / 1`. Set its width in 
 | `no-idle` | Boolean attribute; presence disables automatic idle motion | Absent |
 | `label` | Accessible canvas label | `Avatar` |
 
-Attributes can be changed after loading. Changing `src` or `fit` destroys the current avatar and loads a new one. After `load(source)`, changing `fit` reloads that source; changing `src` switches back to the attribute URL. A failed load leaves the element empty; listen for `error` to show a fallback. Unknown expression, emotion or fit values warn once per attribute/value pair rather than throwing.
+Attributes can be changed after loading. Connection and `src` / `fit` changes in the same task are combined into one load in a microtask; `load(source)` starts immediately. Changing `src` or `fit` destroys the current avatar and loads a new one. After `load(source)`, changing `fit` reloads that source; changing `src` switches back to the attribute URL. A failed load leaves the element empty; listen for `error` to show a fallback. Unknown expression, emotion or fit values warn once per attribute/value pair rather than throwing.
 
 ## Properties, methods and events
 

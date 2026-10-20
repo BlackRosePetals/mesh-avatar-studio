@@ -1,0 +1,51 @@
+{
+  "name": "mesh-avatar-react",
+  "version": "0.0.0",
+  "type": "module",
+  "license": "MIT",
+  "description": "A React component for animated Mesh Avatar Studio avatars.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/shinshin86/mesh-avatar-studio.git",
+    "directory": "packages/react"
+  },
+  "homepage": "https://github.com/shinshin86/mesh-avatar-studio/tree/main/packages/react",
+  "keywords": [
+    "avatar",
+    "react",
+    "nextjs",
+    "webgl",
+    "vtuber",
+    "mesh-avatar"
+  ],
+  "sideEffects": [
+    "./src/index.tsx",
+    "./dist/index.js"
+  ],
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "vite build && tsc -p tsconfig.build.json",
+    "prepack": "npm run build"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "dependencies": {
+    "mesh-avatar-element": "^0.1.0"
+  },
+  "peerDependencies": {
+    "react": ">=18"
+  }
+}

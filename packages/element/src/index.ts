@@ -26,6 +26,7 @@ export class MeshAvatarElement extends Base {
   #ready = new ReadySignal<MeshAvatar>();
   #loadId = 0;
   #loading = false;
+  #scheduled: object | null = null;
   #source: AvatarSource | undefined;
   #raf = 0;
   #previous = 0;
@@ -55,6 +56,7 @@ export class MeshAvatarElement extends Base {
 
   /** Loads a file, archive or URL without changing `src`. A changed `src` replaces this source. */
   load(source: AvatarSource): Promise<MeshAvatar> {
+    this.#scheduled = null;
     this.#source = source;
     void this.#load();
     return this.ready;
@@ -94,7 +96,7 @@ export class MeshAvatarElement extends Base {
     });
     this.#observer.observe(this);
     document.addEventListener('visibilitychange', this.#updateLoop);
-    if (!this.#avatar && !this.#loading) this.#load();
+    if (!this.#avatar && !this.#loading) this.#scheduleLoad();
     else this.#updateLoop();
   }
 
@@ -111,7 +113,7 @@ export class MeshAvatarElement extends Base {
     if (name === 'src' || name === 'fit') {
       if (name === 'src') this.#source = undefined;
       if (name === 'fit' && parseFit(value) === undefined) this.#warn(name, value);
-      if (this.isConnected) this.#load();
+      if (this.isConnected) this.#scheduleLoad();
     } else if (name === 'label') {
       this.#canvas.setAttribute('aria-label', value || 'Avatar');
     } else if (name === 'paused') {
@@ -131,6 +133,17 @@ export class MeshAvatarElement extends Base {
     } else if (name === 'no-idle') {
       avatar.setAutoIdle(!this.hasAttribute('no-idle'));
     }
+  }
+
+  #scheduleLoad() {
+    this.#ready.start();
+    if (this.#scheduled) return;
+    const reservation = this.#scheduled = {};
+    queueMicrotask(() => {
+      if (this.#scheduled !== reservation) return;
+      this.#scheduled = null;
+      if (this.isConnected) void this.#load();
+    });
   }
 
   async #load(source: AvatarSource = this.#source ?? (this.getAttribute('src') || DEFAULT_SRC)) {

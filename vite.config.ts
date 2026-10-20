@@ -6,7 +6,10 @@ import { localProjectsPlugin } from './src/server/local-projects';
 import { mediapipeAssets } from './src/server/mediapipe-assets';
 import { liveRelay } from './src/server/live-relay';
 export default defineConfig({
-  resolve: { alias: { 'mesh-avatar': fileURLToPath(new URL('./packages/runtime/src/index.ts', import.meta.url)) } },
+  resolve: { alias: {
+    'mesh-avatar': fileURLToPath(new URL('./packages/runtime/src/index.ts', import.meta.url)),
+    'mesh-avatar-element': fileURLToPath(new URL('./packages/element/src/index.ts', import.meta.url)),
+  } },
   server: { host: '127.0.0.1' },
   plugins: [react(), localProjectsPlugin(fileURLToPath(new URL('.', import.meta.url))), mediapipeAssets(fileURLToPath(new URL('.', import.meta.url))), liveRelay(fileURLToPath(new URL('.', import.meta.url))), {
     name: 'sample-rig',
@@ -22,5 +25,5 @@ export default defineConfig({
   }],
   publicDir: 'samples',
   build: { rollupOptions: { input: { editor: 'index.html', stream: 'stream.html', live: 'live.html' } } },
-  test: { include: ['tests/**/*.test.ts', 'packages/runtime/tests/**/*.test.ts', 'packages/element/tests/**/*.test.ts'] },
+  test: { include: ['tests/**/*.test.ts', 'packages/runtime/tests/**/*.test.ts', 'packages/element/tests/**/*.test.ts', 'packages/react/tests/**/*.test.ts'] },
 });
