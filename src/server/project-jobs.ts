@@ -36,6 +36,23 @@ async function safeTree(path: string) {
   if (info.isSymbolicLink()) throw new JobError('unsafeFiles', 'Project files must not be symbolic links.');
   if (info.isDirectory()) for (const entry of await readdir(path)) await safeTree(join(path, entry));
 }
+function wait(ms: number) { return new Promise(resolve => setTimeout(resolve, ms)); }
+// The dev server's file watcher holds directory handles under projects/. On Windows
+// that denies rename() on a directory it has open (EPERM/EBUSY), even though the same
+// rename succeeds once the watcher lets go moments later. Retry a few times first,
+// then fall back to copy+remove - the same workaround other file-watching tools use
+// for AV/watcher-locked paths on Windows - instead of failing the whole publish.
+export async function renameResilient(from: string, to: string) {
+  for (let attempt = 1; ; attempt++) {
+    try { await rename(from, to); return; }
+    catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (code !== 'EPERM' && code !== 'EBUSY') throw error;
+      if (attempt >= 5) { await copyTree(from, to); await rm(from, { recursive: true, force: true }); return; }
+      await wait(attempt * 20);
+    }
+  }
+}
 async function publish(project: string, stage: string, names: string[]) {
   // Validate all targets before moving anything. Keep old directories until all
   // replacements succeed, and roll back on an I/O error.
@@ -45,13 +62,13 @@ async function publish(project: string, stage: string, names: string[]) {
     for (const name of names) {
       const target = join(project, name), previous = join(stage, `previous-${name}`);
       const item = { name, hadPrevious: await exists(target), installed: false }; moved.push(item);
-      if (item.hadPrevious) await rename(target, previous);
-      await rename(join(stage, name), target); item.installed = true;
+      if (item.hadPrevious) await renameResilient(target, previous);
+      await renameResilient(join(stage, name), target); item.installed = true;
     }
   } catch (error) {
     for (const item of moved.reverse()) {
       if (item.installed) await rm(join(project, item.name), { recursive: true, force: true });
-      if (item.hadPrevious && await exists(join(stage, `previous-${item.name}`))) await rename(join(stage, `previous-${item.name}`), join(project, item.name));
+      if (item.hadPrevious && await exists(join(stage, `previous-${item.name}`))) await renameResilient(join(stage, `previous-${item.name}`), join(project, item.name));
     }
     throw error;
   }
