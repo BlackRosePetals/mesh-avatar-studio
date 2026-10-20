@@ -34,6 +34,10 @@ jobs:
       - name: Build runtime
         run: npm run build:runtime
 
+      # The React wrapper's build reads the element's type declarations.
+      - name: Build embed element
+        run: npm run build:element
+
       - name: Run unit tests
         run: npm test
 
