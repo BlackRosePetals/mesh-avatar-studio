@@ -113,11 +113,13 @@ test('angle sliders retain the rendered pose after rebuilding and stopping a swe
   expect(hash(await preview.screenshot())).not.toBe(turned);
   revision = Number(await preview.getAttribute('data-revision'));
   await page.getByRole('button', { name: 'Stop sweep', exact: true }).click();
-  await expect.poll(async () => Number(await preview.getAttribute('data-revision'))).toBeGreaterThan(revision);
+  await expect.poll(async () => Number(await preview.getAttribute('data-revision')), { timeout: 15000 }).toBeGreaterThan(revision);
   expect(hash(await preview.screenshot())).toBe(turned);
   await page.screenshot({ path: 'docs/screenshots/pose-after-sweep.png' });
   // Automatic completion restores the same slider-driven pose as a manual stop.
+  // Starting and ending a sweep each recreate the preview (about 2 s when idle), and the
+  // sweep runs for 6 s after the first one, so allow for a busy machine.
   await page.getByRole('button', { name: 'Sweep angles', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Sweep angles', exact: true })).toBeVisible({ timeout: 10000 });
-  await expect.poll(async () => hash(await preview.screenshot())).toBe(turned);
+  await expect(page.getByRole('button', { name: 'Sweep angles', exact: true })).toBeVisible({ timeout: 20000 });
+  await expect.poll(async () => hash(await preview.screenshot()), { timeout: 15000 }).toBe(turned);
 });
