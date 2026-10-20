@@ -1,5 +1,11 @@
 # mesh-avatar-element
 
+## 0.1.1
+
+### Patch Changes
+
+- 555611a: Coalesce connected element source and fit changes into one load per task.
+
 ## 0.1.0
 
 ### Minor Changes
