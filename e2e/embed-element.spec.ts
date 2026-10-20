@@ -212,3 +212,30 @@ test('load rejects broken archive data, emits error and recovers from a subseque
   expect(errors).toEqual([]);
   await drawn(page);
 });
+
+test('coalesces connection, src and fit changes and exposes a pending ready immediately', async ({ page }) => {
+  await open(page);
+  let defaults = 0;
+  let explicit = 0;
+  page.on('request', request => {
+    if (request.url() === defaultSrc) defaults++;
+    if (request.url() === sample + '?coalesced') explicit++;
+  });
+  expect(await page.evaluate(async url => {
+    const el = document.createElement('mesh-avatar');
+    let loads = 0;
+    el.addEventListener('load', () => loads++);
+    document.querySelector('#second')!.append(el);
+    el.src = url;
+    el.fit = 'cover';
+    await el.ready;
+    const old = el.avatar;
+    el.src = url + '&again';
+    el.fit = 'contain';
+    const pending = el.ready;
+    const avatar = await pending;
+    return loads === 2 && avatar !== old && avatar === el.avatar;
+  }, sample + '?coalesced')).toBe(true);
+  expect(defaults).toBe(0);
+  expect(explicit).toBe(1);
+});
