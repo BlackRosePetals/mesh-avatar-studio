@@ -103,7 +103,7 @@ test('tools use execFile with a fixed argument array, and missing dependencies r
     (args[3] as (error: Error | null, stdout: string, stderr: string) => void)(null, 'complete', ''); return {} as ReturnType<typeof execFile>;
   });
   expect(await runTool(root, project, 'build-layers')).toBe('complete');
-  expect(execute).toHaveBeenCalledWith('uv', ['run', '--no-project', '--no-python-downloads', '--python', '>=3.10', '--with', 'numpy', '--with', 'pillow', '--with', 'opencv-python-headless', resolve(root, 'tools/build-layers.py'), project], expect.objectContaining({ cwd: root, timeout: 120000 }), expect.any(Function));
+  expect(execute).toHaveBeenCalledWith('uv', ['run', '--no-project', '--no-python-downloads', '--python', '>=3.10,<3.14', '--with', 'numpy', '--with', 'pillow', '--with', 'opencv-python-headless', resolve(root, 'tools/build-layers.py'), project], expect.objectContaining({ cwd: root, timeout: 120000 }), expect.any(Function));
   execute.mockImplementation((...args: unknown[]) => {
     (args[3] as (error: Error, stdout: string, stderr: string) => void)(Object.assign(new Error('not installed'), { code: 'ENOENT' }), '', ''); return {} as ReturnType<typeof execFile>;
   });
