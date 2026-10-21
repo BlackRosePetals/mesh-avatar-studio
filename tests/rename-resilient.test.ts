@@ -5,6 +5,9 @@ import { join, resolve } from 'node:path';
 let failuresRemaining = 0;
 let failureCode: 'EPERM' | 'EBUSY' | 'ENOENT' = 'EPERM';
 let renameCalls = 0;
+let rmFailuresRemaining = 0;
+let rmFailureCode: 'EPERM' | 'EBUSY' = 'EPERM';
+let partialDeletePath = '';
 
 vi.mock('node:fs/promises', async importOriginal => {
   const actual = await importOriginal<typeof import('node:fs/promises')>();
@@ -20,16 +23,30 @@ vi.mock('node:fs/promises', async importOriginal => {
       }
       return actual.rename(from, to);
     },
+    rm: async (path: string, options?: Parameters<typeof actual.rm>[1]) => {
+      if (rmFailuresRemaining > 0 && path === partialDeletePath) {
+        rmFailuresRemaining--;
+        // A real watcher-locked rm can delete some entries before hitting the
+        // lock. Delete one file for real so the directory is left non-empty,
+        // the same partial state a genuine partway failure leaves behind.
+        await actual.rm(join(path, 'base.png'), { force: true });
+        const error = new Error('locked') as NodeJS.ErrnoException;
+        error.code = rmFailureCode;
+        throw error;
+      }
+      return actual.rm(path, options);
+    },
   };
 });
 
-const { renameResilient } = await import('../src/server/project-jobs');
+const { renameResilient, publish } = await import('../src/server/project-jobs');
 
 let root: string;
 beforeEach(async () => {
   await mkdir(resolve('projects'), { recursive: true });
   root = await mkdtemp(join(resolve('projects'), '.rename-test-'));
   failuresRemaining = 0; failureCode = 'EPERM'; renameCalls = 0;
+  rmFailuresRemaining = 0; rmFailureCode = 'EPERM'; partialDeletePath = '';
 });
 afterEach(async () => { await rm(root, { recursive: true, force: true }); });
 
@@ -68,4 +85,17 @@ test('an unrelated error is not retried or papered over', async () => {
   failuresRemaining = 1; failureCode = 'ENOENT';
   await expect(renameResilient(from, to)).rejects.toMatchObject({ code: 'ENOENT' });
   expect(renameCalls).toBe(1);
+});
+
+test('a persistent rm failure while moving the old directory out of the way restores it instead of losing files', async () => {
+  const project = join(root, 'project'), stage = join(root, 'stage');
+  await makeTree(join(project, 'built'));
+  await mkdir(join(stage, 'built'), { recursive: true });
+  await writeFile(join(stage, 'built', 'base.png'), 'new layer data');
+  failuresRemaining = 5; failureCode = 'EBUSY';
+  rmFailuresRemaining = 5; rmFailureCode = 'EPERM'; partialDeletePath = join(project, 'built');
+  const error = await publish(project, stage, ['built']).then(() => undefined, (caught: unknown) => caught);
+  expect(error).toMatchObject({ code: 'EPERM' });
+  expect((error as { keepStage?: boolean }).keepStage).toBeUndefined();
+  await expect(readTree(join(project, 'built'))).resolves.toEqual({ base: 'layer data', nested: 'nested data' });
 });

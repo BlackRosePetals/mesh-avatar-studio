@@ -37,23 +37,43 @@ async function safeTree(path: string) {
   if (info.isDirectory()) for (const entry of await readdir(path)) await safeTree(join(path, entry));
 }
 function wait(ms: number) { return new Promise(resolve => setTimeout(resolve, ms)); }
+// Removal can be denied by the same watcher-locked-handle problem as rename() below.
+// Retry it the same way so a locked directory does not abort a rollback outright.
+async function removeResilient(path: string) {
+  for (let attempt = 1; ; attempt++) {
+    try { await rm(path, { recursive: true, force: true }); return; }
+    catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if ((code !== 'EPERM' && code !== 'EBUSY') || attempt >= 5) throw error;
+      await wait(attempt * 20);
+    }
+  }
+}
 // The dev server's file watcher holds directory handles under projects/. On Windows
 // that denies rename() on a directory it has open (EPERM/EBUSY), even though the same
 // rename succeeds once the watcher lets go moments later. Retry a few times first,
 // then fall back to copy+remove - the same workaround other file-watching tools use
-// for AV/watcher-locked paths on Windows - instead of failing the whole publish.
+// for AV/watcher-locked paths on Windows - instead of failing the whole publish. If
+// either fallback step itself fails partway, undo what it already did rather than
+// leave `to` half-written or `from` half-deleted, so a caller can trust that `to`
+// exists only once the move is fully complete.
 export async function renameResilient(from: string, to: string) {
   for (let attempt = 1; ; attempt++) {
     try { await rename(from, to); return; }
     catch (error) {
       const code = (error as NodeJS.ErrnoException).code;
       if (code !== 'EPERM' && code !== 'EBUSY') throw error;
-      if (attempt >= 5) { await copyTree(from, to); await rm(from, { recursive: true, force: true }); return; }
+      if (attempt >= 5) {
+        try { await copyTree(from, to); }
+        catch (copyError) { await removeResilient(to).catch(() => undefined); throw copyError; }
+        await removeResilient(from);
+        return;
+      }
       await wait(attempt * 20);
     }
   }
 }
-async function publish(project: string, stage: string, names: string[]) {
+export async function publish(project: string, stage: string, names: string[]) {
   // Validate all targets before moving anything. Keep old directories until all
   // replacements succeed, and roll back on an I/O error.
   for (const name of names) if (await exists(join(project, name))) await safeTree(join(project, name));
@@ -66,9 +86,24 @@ async function publish(project: string, stage: string, names: string[]) {
       await renameResilient(join(stage, name), target); item.installed = true;
     }
   } catch (error) {
+    let rollbackError: unknown;
     for (const item of moved.reverse()) {
-      if (item.installed) await rm(join(project, item.name), { recursive: true, force: true });
-      if (item.hadPrevious && await exists(join(stage, `previous-${item.name}`))) await renameResilient(join(stage, `previous-${item.name}`), join(project, item.name));
+      const target = join(project, item.name), previous = join(stage, `previous-${item.name}`);
+      try {
+        // Clear whatever is at target first - fully installed new content, or debris
+        // left by a copy/remove fallback that failed partway - so restoring `previous`
+        // (when there is one) is a move onto a clean spot, not onto a leftover.
+        if (item.hadPrevious && await exists(previous)) { await removeResilient(target); await renameResilient(previous, target); }
+        else if (item.installed) await removeResilient(target);
+      } catch (error2) { rollbackError = error2; }
+    }
+    if (rollbackError) {
+      // The rollback itself failed, so `project` may be missing files a caller relied
+      // on. Keep the stage directory (it still holds `previous-*` backups and is
+      // the only place anything can be recovered from) instead of letting cleanup
+      // delete it, and surface the original failure rather than the rollback's.
+      console.error(`Rolling back a failed publish to ${project} also failed. Old files are kept at ${stage} for manual recovery.`, rollbackError);
+      throw Object.assign(error instanceof Error ? error : new Error(String(error)), { keepStage: true });
     }
     throw error;
   }
@@ -113,6 +148,13 @@ export async function projectJob(root: string, project: string, tool: Tool, file
     if (tool === 'build-layers') await publish(project, stage, ['built', 'rig.json']);
     if (tool === 'variant-requests') await publish(project, stage, ['variant-requests']);
     if (tool === 'build-sprites') await publish(project, stage, ['variants', 'built']);
+    await rm(stage, { recursive: true, force: true });
     return { log, path: relative(root, project).split('\\').join('/') };
-  } finally { await rm(stage, { recursive: true, force: true }); }
+  } catch (error) {
+    // A failed publish that could not roll back marks its error `keepStage`: the
+    // stage directory still holds the only backup of what it couldn't restore, so
+    // leave it on disk for manual recovery instead of deleting it here.
+    if (!(error as { keepStage?: boolean })?.keepStage) await rm(stage, { recursive: true, force: true });
+    throw error;
+  }
 }
