@@ -13,7 +13,7 @@ test.beforeEach(async () => {
   await mkdir(resolve('projects'), { recursive: true });
   directory = await mkdtemp(join(resolve('projects'), 'workflow-check-')); name = basename(directory);
   await cp(resolve('samples/miko-qipao'), directory, { recursive: true,
-    filter: path => !['review', 'variants', 'variant-masks', 'built/sprites'].some(folder => path.startsWith(`${resolve('samples/miko-qipao')}/${folder}`)) });
+    filter: path => !['review', 'variants', 'variant-masks', join('built', 'sprites')].some(folder => path.startsWith(join(resolve('samples/miko-qipao'), folder))) });
 });
 test.afterEach(async () => { if (directory) await rm(directory, { recursive: true, force: true }); });
 async function open(page: Page) {
