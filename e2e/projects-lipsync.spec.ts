@@ -12,7 +12,7 @@ test.beforeEach(async () => {
   await mkdir(resolve('projects'), { recursive: true });
   directory = await mkdtemp(join(resolve('projects'), 'lip-check-')); name = basename(directory);
   await cp(resolve('samples/miko-qipao'), directory, { recursive: true,
-    filter: path => !path.includes(`${resolve('samples/miko-qipao')}/review`) && !path.includes(`${resolve('samples/miko-qipao')}/built/sprites`) });
+    filter: path => !path.includes(join(resolve('samples/miko-qipao'), 'review')) && !path.includes(join(resolve('samples/miko-qipao'), 'built', 'sprites')) });
 });
 test.afterEach(async () => { if (directory) await rm(directory, { recursive: true, force: true }); });
 async function open(page: Page, project: string) {

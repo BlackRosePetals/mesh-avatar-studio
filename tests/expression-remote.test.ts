@@ -33,7 +33,7 @@ test('token is private, persistent and regenerable; requests need it and a valid
   expect(first.status).toBe(200); expect(first.head['access-control-allow-origin']).toBeUndefined();
   const token = first.json.token as string;
   expect(token).toMatch(/^[A-Za-z0-9_-]{32}$/);
-  expect((await readFile(file, 'utf8')).trim()).toBe(token); expect((await stat(file)).mode & 0o777).toBe(0o600);
+  expect((await readFile(file, 'utf8')).trim()).toBe(token); expect((await stat(file)).mode & 0o777).toBe(process.platform === 'win32' ? 0o666 : 0o600);
   // A fresh server instance reuses the saved token.
   const again = expressionRemote(file, () => undefined, () => undefined);
   expect((await call(again, 'GET', '/__live/expression-token', { 'x-studio-request': '1' })).json.token).toBe(token);
