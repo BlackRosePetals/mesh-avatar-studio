@@ -327,6 +327,9 @@ upgrading it.
 
 ## Verify
 
+For headless deformation statistics and seeded motion comparisons, see
+[deformation and motion metrics](quality.md).
+
 ```sh
 npm run lint
 npm test
