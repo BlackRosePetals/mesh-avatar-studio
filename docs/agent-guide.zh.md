@@ -1,6 +1,8 @@
 # Agent 指南：把一张插画变成网格虚拟形象
 
-[English](agent-guide.md)
+[English](agent-guide.md) · [日本語](agent-guide.ja.md)
+
+> 本译文与英文版（[agent-guide.md](agent-guide.md)）内容不一致时，以英文版为准。
 
 本指南面向在本仓库中工作的编程助手（Claude Code、Codex、Cursor CLI 或类似工具）。用户会给你一张插画并请你制作虚拟形象。你需要构建一个编辑器能打开、动效干净的项目；之后用户会在编辑器里进行微调。
 
