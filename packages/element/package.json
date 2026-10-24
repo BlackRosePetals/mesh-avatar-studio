@@ -36,7 +36,7 @@
   },
   "scripts": {
     "build": "vite build && vite build --mode standalone && tsc -p tsconfig.build.json",
-    "prepack": "npm run build"
+    "prepack": "node ../../tools/prepack.mjs"
   },
   "exports": {
     ".": {
