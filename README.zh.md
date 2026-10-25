@@ -108,6 +108,12 @@ npm run dev
 
 [Player](https://shinshin86.github.io/mesh-avatar-studio/play/) 完全在浏览器内运行面部追踪、麦克风口型同步、表情和光照。打开示例或你自己的 `.mavatar` 文件即可，不会上传任何内容。它没有直播地址：选择**打开虚拟形象窗口**（Chrome 或 Edge），在 OBS 里用**窗口采集**配合绿色背景和色度键滤镜添加该窗口。透明背景、OBS 浏览器来源和从其他应用切换表情需要使用 Studio 的直播页面。
 
+## 实验性原生运行时
+
+仓库提供 Rust 运行时、PNG 渲染器和适用于 macOS 的透明桌面虚拟形象程序，
+可加载与 JavaScript 运行时相同的 `.mavatar` 文件和已构建的项目文件夹。
+构建方法和操作说明见[原生版指南](native/README.zh.md)。原生版仍为实验性功能，API 和操作方式可能变更。
+
 ## 发布
 
 要修改 `mesh-avatar`，运行 `npm run changeset` 并把生成的文件包含在你的 PR 里。在 `main` 分支上，GitHub Actions 会打开或更新一个 `chore: version packages` PR，其中包含下一个版本号和更新日志；合并后会把 `mesh-avatar` 发布到 npm 并附带 provenance。Studio 根包保持私有。发布使用 npm 的 trusted publishing：在 npmjs.com 上为 `mesh-avatar` 添加一个 trusted publisher，指定本仓库和 `release.yml` 工作流，无需在仓库中保存 npm token。npm 无法匹配到 trusted publisher 的发布会停在 Staged Packages 标签页，等待维护者用 2FA 审批。在仓库 Settings → Actions → General 中，启用 **Allow GitHub Actions to create and approve pull requests**，工作流才能打开版本 PR。提交 PR 前请先本地运行 `npm run e2e`；CI 会运行其他检查，但不安装 Playwright 浏览器。

@@ -1,4 +1,5 @@
 //! Native macOS menus and dialogs. All AppKit entry points stay on the main thread.
+use crate::menu_model::AvatarMenu;
 use crate::UserEvent;
 use anyhow::Result;
 use std::path::{Path, PathBuf};
@@ -9,6 +10,14 @@ pub enum Command {
     Recent(PathBuf),
     Reload,
     Quit,
+    Play(String),
+    Expression(String),
+    ToggleVisible,
+    ToggleClickThrough,
+    ToggleMicrophone,
+    MicrophoneDevice(Option<String>),
+    MicrophoneSensitivity(crate::audio_level::Sensitivity),
+    RefreshMicrophones,
 }
 
 #[cfg(target_os = "macos")]
@@ -29,6 +38,11 @@ mod platform {
         _root: Menu,
         recent: Submenu,
         entries: Vec<(MenuItem, PathBuf)>,
+        motions: Submenu,
+        expressions: Submenu,
+        avatar_model: AvatarMenu,
+        status: Option<crate::status_bar::StatusBar>,
+        microphone: crate::microphone_menu::MicrophoneMenu,
     }
     impl AppMenu {
         pub fn install(proxy: EventLoopProxy<UserEvent>, paths: &[PathBuf]) -> Result<Self> {
@@ -75,11 +89,29 @@ mod platform {
                     &PredefinedMenuItem::select_all(None),
                 ],
             )?;
-            root.append_items(&[&app, &file, &edit])?;
+            let motions = Submenu::new("Motion", true);
+            let expressions = Submenu::new("Expression", true);
+            let avatar = Submenu::with_items("Avatar", true, &[&motions, &expressions])?;
+            let microphone = crate::microphone_menu::MicrophoneMenu::new()?;
+            root.append_items(&[&app, &file, &avatar, &microphone.submenu, &edit])?;
+            let status =
+                match crate::status_bar::StatusBar::new(&recent, &open, &quit, &microphone.submenu)
+                {
+                    Ok(status) => Some(status),
+                    Err(error) => {
+                        eprintln!("Could not create status-bar icon: {error:#}");
+                        None
+                    }
+                };
             let mut menu = Self {
                 _root: root,
                 recent,
                 entries: Vec::new(),
+                motions,
+                expressions,
+                avatar_model: AvatarMenu::new(&[]),
+                status,
+                microphone,
             };
             menu.set_recent(paths)?;
             MenuEvent::set_event_handler(Some(move |event: MenuEvent| {
@@ -112,12 +144,45 @@ mod platform {
                 "open" => Some(Command::Open),
                 "reload" => Some(Command::Reload),
                 "quit" => Some(Command::Quit),
+                "toggle-visible" => Some(Command::ToggleVisible),
+                "toggle-click-through" => Some(Command::ToggleClickThrough),
                 _ => self
                     .entries
                     .iter()
                     .find(|(item, _)| item.id().as_ref() == id)
-                    .map(|(_, path)| Command::Recent(path.clone())),
+                    .map(|(_, path)| Command::Recent(path.clone()))
+                    .or_else(|| self.avatar_model.command(id))
+                    .or_else(|| self.microphone.command(id)),
             }
+        }
+        pub fn set_avatar(&mut self, model: AvatarMenu) -> Result<()> {
+            for (submenu, entries) in [
+                (&self.motions, &model.motions),
+                (&self.expressions, &model.expressions),
+            ] {
+                while submenu.remove_at(0).is_some() {}
+                for entry in entries {
+                    submenu.append(&MenuItem::with_id(
+                        entry.id.clone(),
+                        entry.label.replace('&', "&&"),
+                        true,
+                        None,
+                    ))?;
+                }
+                if entries.is_empty() {
+                    submenu.append(&MenuItem::new("No Motions", false, None))?;
+                }
+            }
+            self.avatar_model = model;
+            Ok(())
+        }
+        pub fn update_controls(&mut self, state: crate::window_controls::WindowControls) {
+            if let Some(status) = &mut self.status {
+                status.update(state);
+            }
+        }
+        pub fn update_microphone(&mut self, state: &crate::microphone::State) -> Result<()> {
+            self.microphone.update(state)
         }
     }
 
@@ -174,6 +239,13 @@ mod platform {
         }
         pub fn command(&self, _: &str) -> Option<Command> {
             None
+        }
+        pub fn set_avatar(&mut self, _: AvatarMenu) -> Result<()> {
+            Ok(())
+        }
+        pub fn update_controls(&mut self, _: crate::window_controls::WindowControls) {}
+        pub fn update_microphone(&mut self, _: &crate::microphone::State) -> Result<()> {
+            Ok(())
         }
     }
     pub fn open(_: EventLoopProxy<UserEvent>, _: &Window, _: Option<&Path>) -> Result<()> {

@@ -57,6 +57,24 @@ impl Scaling {
         self.change(0.0, bounds);
     }
 
+    pub fn zoom(&self) -> f64 {
+        self.zoom
+    }
+    pub fn logical_size(&self) -> LogicalSize<f64> {
+        LogicalSize::new(self.base.width * self.zoom, self.base.height * self.zoom)
+    }
+    pub fn has_request(&self) -> bool {
+        self.pending.is_some()
+    }
+    pub fn from_zoom(base: LogicalSize<f64>, zoom: f64, bounds: ScaleBounds) -> Result<Self> {
+        ensure!(zoom.is_finite() && zoom > 0.0, "invalid saved zoom");
+        let mut scaling = Self::new(base)?;
+        scaling.zoom = zoom;
+        scaling.refresh(bounds);
+        ensure!(scaling.pending.is_some(), "invalid monitor bounds");
+        Ok(scaling)
+    }
+
     /// Prepare a different avatar's aspect without changing the live scaling state.
     pub fn rebase(&self, base: LogicalSize<f64>, bounds: ScaleBounds) -> Result<Self> {
         let mut replacement = Self::new(base)?;

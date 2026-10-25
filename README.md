@@ -174,6 +174,13 @@ window** (Chrome or Edge) and add that window to OBS with **Window Capture** on 
 background and a Chroma Key filter. Transparency, the OBS Browser Source and switching
 expressions from other apps need Studio's Live page.
 
+## Experimental native runtime
+
+A Rust runtime, PNG renderer and transparent macOS desktop avatar are available in
+[the native guide](native/README.md). They load the same `.mavatar` files and built
+project folders as the JavaScript runtime. The native version is experimental;
+its APIs and controls may change.
+
 ## Releases
 
 For changes to `mesh-avatar`, run `npm run changeset` and include the generated file in your

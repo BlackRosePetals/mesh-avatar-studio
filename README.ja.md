@@ -110,6 +110,13 @@ npm run dev
 
 [Player](https://shinshin86.github.io/mesh-avatar-studio/ja/play/) では、顔の追従、マイクでの口パク、表情、ライティングをすべてブラウザ内で動かせます。サンプルか自分の `.mavatar` ファイルを開いて使い、ファイルはアップロードされません。OBS用URLはないため、「アバターウィンドウを開く」(Chrome か Edge)を押し、そのウィンドウを緑の背景にして OBS の「ウィンドウキャプチャ」で取り込み、クロマキーで抜いてください。透明な背景、OBS の「ブラウザ」ソース、他のアプリからの表情の切り替えを使うときは、Studio の配信画面を使います。
 
+## 実験的なネイティブ版
+
+Rust版のランタイム、PNGレンダラー、macOS向けの透明なデスクトップアバターを開発しています。
+JavaScript版と同じ `.mavatar` ファイルとビルド済みプロジェクトフォルダを読み込めます。
+ビルド方法と操作は[ネイティブ版のガイド](native/README.ja.md)を参照してください。
+実験的な機能のため、APIや操作方法は変更されることがあります。
+
 ## リリース
 
 `mesh-avatar` を変更するときは `npm run changeset` を実行し、生成されたファイルをPRに含めてください。`main` に変更が入ると、GitHub Actionsが次のバージョンと変更履歴を含む `chore: version packages` PRを作成・更新します。そのPRをマージすると、`mesh-avatar` がprovenance付きでnpmに公開されます。Studioのルートパッケージは非公開のままです。公開にはnpmのtrusted publishingを使います。npmjs.comの `mesh-avatar` の設定で、このリポジトリと `release.yml` ワークフローをtrusted publisherとして登録してください。npmのトークンをリポジトリに保存する必要はありません。trusted publisherに一致しない公開は、メンテナーが2FAで承認するまでStaged Packagesタブで待機します。ワークフローがバージョン更新のPRを作成できるよう、リポジトリの Settings → Actions → General で **Allow GitHub Actions to create and approve pull requests** を有効にしてください。PRを作る前に、手元で `npm run e2e` を実行してください。CIはその他の検証を実行し、Playwrightのブラウザはインストールしません。
