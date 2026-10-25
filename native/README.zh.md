@@ -2,6 +2,9 @@
 
 [English](README.md) · [日本語](README.ja.md)
 
+> **实验性功能。** 原生运行时仍在开发中，尚未作为软件包发布。
+> API、操作方式和文件保存位置可能会在不另行通知的情况下变更。参考实现仍是 `packages/runtime` 中的 JavaScript 运行时。
+
 Rust 运行时可以加载与 JavaScript 运行时相同的 `.mavatar` 文件和已构建的项目文件夹。
 其中包含一个透明的桌面虚拟形象程序和一个 PNG 渲染器。桌面端的主要目标平台是使用 Metal 的 macOS。
 

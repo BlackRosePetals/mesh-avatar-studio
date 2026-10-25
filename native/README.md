@@ -2,6 +2,10 @@
 
 [日本語](README.ja.md) · [简体中文](README.zh.md)
 
+> **Experimental.** The native runtime is a work in progress. It is not published
+> as a package, and its API, controls and file locations may change without notice.
+> The JavaScript runtime in `packages/runtime` remains the reference implementation.
+
 The Rust runtime loads the same `.mavatar` files and built project folders as the
 JavaScript runtime. It includes a transparent desktop avatar and a PNG renderer.
 The primary desktop target is macOS with Metal.
