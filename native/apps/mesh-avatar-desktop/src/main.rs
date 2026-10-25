@@ -1,8 +1,14 @@
+mod geometry;
+mod loading;
+mod menu;
 mod presentation;
 mod scaling;
 use anyhow::{bail, ensure, Context, Result};
+use geometry::{fit_base, switch_layout};
+use loading::{Loaded, Loader, Recent};
 use mesh_avatar_core::{
     engine::{expression::OVERLAY_EXPRESSIONS, motion::SpeakOptions},
+    format::AvatarPackage,
     Avatar, Frame,
 };
 use mesh_avatar_wgpu::{Fit, Renderer, ViewOptions};
@@ -20,9 +26,9 @@ use std::{
 };
 use winit::{
     application::ApplicationHandler,
-    dpi::{LogicalSize, PhysicalPosition, PhysicalSize},
+    dpi::{PhysicalPosition, PhysicalSize},
     event::{ElementState, MouseButton, WindowEvent},
-    event_loop::{ActiveEventLoop, ControlFlow, EventLoop},
+    event_loop::{ActiveEventLoop, ControlFlow, EventLoop, EventLoopProxy},
     keyboard::{KeyCode, ModifiersState, PhysicalKey},
     window::{Window, WindowId, WindowLevel},
 };
@@ -43,12 +49,20 @@ fn default_sample() -> Result<PathBuf> {
     }
     bail!("Default sample not found. Run from a source checkout or pass a .mavatar file or built project folder.")
 }
-fn base_size(view: &ViewOptions) -> LogicalSize<f64> {
-    LogicalSize::new(
-        400.0,
-        400.0 * f64::from(view.image_size[1]) * (1.0 + view.pad_top)
-            / (f64::from(view.image_size[0]) * (1.0 + 2.0 * view.pad_side)),
-    )
+fn avatar_view(avatar: &Avatar) -> ViewOptions {
+    let rig = &avatar.package().rig;
+    ViewOptions {
+        image_size: [rig.image.width, rig.image.height],
+        pad_top: rig.view.pad_top,
+        pad_side: rig.view.pad_side,
+        fit: Fit::Contain,
+    }
+}
+fn print_motions(avatar: &Avatar) {
+    eprintln!("Avatar: {}", avatar.package().manifest.name);
+    for (i, motion) in avatar.motions().iter().take(9).enumerate() {
+        eprintln!("{}: {}", i + 1, motion.label);
+    }
 }
 
 /// Keep a painted source-image cutoff outside the window, including extreme poses.
@@ -132,6 +146,7 @@ struct Scene {
     top_edge: TopEdgeGuard,
     last_frame: Instant,
     scaling: Scaling,
+    pending_position: Option<PhysicalPosition<i32>>,
     pending_surface_size: Option<PhysicalSize<u32>>,
     redraw_requested: bool,
     gpu_failed: Arc<AtomicBool>,
@@ -142,23 +157,11 @@ struct Scene {
 }
 impl Scene {
     async fn new(event_loop: &ActiveEventLoop, mut avatar: Avatar) -> Result<Self> {
-        let rig = &avatar.package().rig;
-        let view = ViewOptions {
-            image_size: [rig.image.width, rig.image.height],
-            pad_top: rig.view.pad_top,
-            pad_side: rig.view.pad_side,
-            fit: Fit::Contain,
-        };
-        let mut base_size = base_size(&view);
-        Scaling::new(base_size)?;
-        if let Some(monitor) = event_loop.primary_monitor() {
-            let screen = monitor.size().to_logical::<f64>(monitor.scale_factor());
-            let fit = (screen.width * 0.85 / base_size.width)
-                .min(screen.height * 0.85 / base_size.height)
-                .min(1.0);
-            base_size.width *= fit;
-            base_size.height *= fit;
-        }
+        let view = avatar_view(&avatar);
+        let screen = event_loop
+            .primary_monitor()
+            .map(|m| m.size().to_logical(m.scale_factor()));
+        let base_size = fit_base(&view, screen)?;
         let attributes = Window::default_attributes()
             .with_title("Mesh Avatar")
             .with_inner_size(base_size)
@@ -267,9 +270,7 @@ impl Scene {
             window.scale_factor()
         );
         eprintln!("Drag to move · scroll or Cmd +/- to scale · E expression · K kana · C click-through · Esc quit");
-        for (i, motion) in avatar.motions().iter().take(9).enumerate() {
-            eprintln!("{}: {}", i + 1, motion.label);
-        }
+        print_motions(&avatar);
         window.set_visible(true);
         window.focus_window();
         window.request_redraw();
@@ -287,6 +288,7 @@ impl Scene {
             top_edge,
             last_frame: Instant::now(),
             scaling: Scaling::new(base_size)?,
+            pending_position: None,
             pending_surface_size: None,
             redraw_requested: true,
             gpu_failed,
@@ -325,6 +327,54 @@ impl Scene {
             texture_limit: self.device.limits().max_texture_dimension_2d,
         }
     }
+    /// Build all replacement state first so a bad avatar cannot remove the live one.
+    fn replace_avatar(&mut self, package: AvatarPackage) -> Result<()> {
+        let mut avatar = Avatar::from_package(package)?;
+        let view = avatar_view(&avatar);
+        let layout = switch_layout(
+            &view,
+            &self.scaling,
+            self.scale_bounds(),
+            self.window.outer_position()?,
+        )?;
+        avatar.set_auto_idle(true);
+        avatar.set_auto_motion(true);
+        let initial = avatar.tick(0.0);
+        let top_edge = TopEdgeGuard::new(&avatar, &initial);
+        self.device.push_error_scope(wgpu::ErrorFilter::Validation);
+        self.device.push_error_scope(wgpu::ErrorFilter::OutOfMemory);
+        let renderer = catch_unwind(AssertUnwindSafe(|| {
+            Renderer::new(
+                &self.device,
+                &self.queue,
+                self.view_format,
+                4,
+                avatar.textures(),
+            )
+        }))
+        .unwrap_or_else(|_| {
+            Err(anyhow::anyhow!(
+                "graphics backend could not prepare the new avatar"
+            ))
+        });
+        let memory_error = pollster::block_on(self.device.pop_error_scope());
+        let validation_error = pollster::block_on(self.device.pop_error_scope());
+        if let Some(error) = memory_error.or(validation_error) {
+            bail!("could not upload avatar: {error}");
+        }
+        let renderer = renderer?;
+        self.avatar = avatar;
+        self.renderer = renderer;
+        self.view = view;
+        self.top_edge = top_edge;
+        self.scaling = layout.scaling;
+        self.pending_position = Some(layout.position);
+        self.expression_index = 0;
+        self.last_frame = Instant::now();
+        self.redraw_requested = true;
+        print_motions(&self.avatar);
+        Ok(())
+    }
     /// Run native resize and GPU work after input/drawRect callbacks return.
     fn service(&mut self) -> Result<()> {
         ensure!(
@@ -339,6 +389,9 @@ impl Scene {
                     self.pending_surface_size = Some(accepted);
                 }
             }
+        }
+        if let Some(position) = self.pending_position.take() {
+            self.window.set_outer_position(position);
         }
         if let Some(size) = self.pending_surface_size.take() {
             // Several notifications can be queued during a trackpad input burst.
@@ -471,12 +524,116 @@ impl Scene {
     }
 }
 
+enum UserEvent {
+    Menu(String),
+    Picked(Option<PathBuf>),
+    AlertClosed,
+    Loaded(Box<Loaded>),
+}
 struct App {
     avatar: Option<Avatar>,
     scene: Option<Scene>,
     error: Option<anyhow::Error>,
+    current_path: PathBuf,
+    recent: Recent,
+    loader: Loader,
+    pending_load: Option<Loaded>,
+    proxy: EventLoopProxy<UserEvent>,
+    menu: Option<menu::AppMenu>,
+    commands: Vec<menu::Command>,
+    dialog_open: bool,
 }
-impl ApplicationHandler for App {
+impl App {
+    fn refresh_recent(&mut self) {
+        if self.recent.prune() {
+            if let Err(error) = self.recent.save() {
+                eprintln!("Could not save recent avatars: {error:#}");
+            }
+        }
+        if let Some(menu) = &mut self.menu {
+            if let Err(error) = menu.set_recent(self.recent.entries()) {
+                eprintln!("Could not update recent menu: {error:#}");
+            }
+        }
+    }
+    fn request_load(&mut self, path: PathBuf) {
+        if let Err(error) = self.loader.request(path) {
+            self.load_error(&format!("{error:#}"));
+        }
+    }
+    fn load_error(&mut self, message: &str) {
+        eprintln!("Could not open avatar; keeping current avatar: {message}");
+        if !self.dialog_open {
+            if let Some(scene) = &self.scene {
+                match menu::alert(self.proxy.clone(), &scene.window, message) {
+                    Ok(()) => self.dialog_open = true,
+                    Err(error) => eprintln!("Could not show avatar error dialog: {error:#}"),
+                }
+            }
+        }
+    }
+    fn service(&mut self, event_loop: &ActiveEventLoop) -> Result<()> {
+        for command in std::mem::take(&mut self.commands) {
+            match command {
+                menu::Command::Quit => {
+                    event_loop.exit();
+                    return Ok(());
+                }
+                menu::Command::Open if !self.dialog_open => {
+                    if let Some(scene) = &self.scene {
+                        let directory = if self.current_path.is_dir() {
+                            Some(self.current_path.as_path())
+                        } else {
+                            self.current_path.parent()
+                        };
+                        match menu::open(self.proxy.clone(), &scene.window, directory) {
+                            Ok(()) => self.dialog_open = true,
+                            Err(error) => self.load_error(&format!("{error:#}")),
+                        }
+                    }
+                }
+                menu::Command::Recent(path) => {
+                    self.refresh_recent();
+                    self.request_load(path);
+                }
+                menu::Command::Reload => self.request_load(self.current_path.clone()),
+                _ => {}
+            }
+        }
+        if let Some(loaded) = self
+            .pending_load
+            .take()
+            .filter(|loaded| self.loader.is_current(loaded))
+        {
+            match loaded
+                .result
+                .map_err(anyhow::Error::msg)
+                .and_then(|package| {
+                    catch_unwind(AssertUnwindSafe(|| {
+                        self.scene
+                            .as_mut()
+                            .context("avatar window is unavailable")?
+                            .replace_avatar(package)
+                    }))
+                    .unwrap_or_else(|_| Err(anyhow::anyhow!("could not prepare the new avatar")))
+                }) {
+                Ok(()) => {
+                    self.current_path = loaded.path;
+                    if let Err(error) = self.recent.record(&self.current_path) {
+                        eprintln!("Could not save recent avatars: {error:#}");
+                    }
+                    self.refresh_recent();
+                }
+                Err(error) => self.load_error(&format!("{error:#}")),
+            }
+        }
+        if let Some(scene) = &mut self.scene {
+            scene.service()?;
+        }
+        Ok(())
+    }
+}
+impl ApplicationHandler<UserEvent> for App {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         if let Some(scene) = &mut self.scene {
             scene.last_frame = Instant::now();
@@ -486,7 +643,16 @@ impl ApplicationHandler for App {
         }
         if let Some(avatar) = self.avatar.take() {
             match pollster::block_on(Scene::new(event_loop, avatar)) {
-                Ok(scene) => self.scene = Some(scene),
+                Ok(scene) => {
+                    self.scene = Some(scene);
+                    if let Err(error) = self.recent.record(&self.current_path) {
+                        eprintln!("Could not save recent avatars: {error:#}");
+                    }
+                    match menu::AppMenu::install(self.proxy.clone(), self.recent.entries()) {
+                        Ok(menu) => self.menu = Some(menu),
+                        Err(error) => eprintln!("Could not install avatar menu: {error:#}"),
+                    }
+                }
                 Err(error) => {
                     self.error = Some(error);
                     event_loop.exit();
@@ -502,6 +668,8 @@ impl ApplicationHandler for App {
             return;
         }
         match event {
+            WindowEvent::DroppedFile(path) => self.commands.push(menu::Command::Recent(path)),
+            WindowEvent::Focused(true) => self.refresh_recent(),
             WindowEvent::CloseRequested => event_loop.exit(),
             WindowEvent::Resized(size) => scene.pending_surface_size = Some(size),
             WindowEvent::ScaleFactorChanged { .. } => scene.scaling.refresh(scene.scale_bounds()),
@@ -513,7 +681,18 @@ impl ApplicationHandler for App {
             WindowEvent::ModifiersChanged(value) => scene.modifiers = value.state(),
             WindowEvent::KeyboardInput { event, .. } if event.state == ElementState::Pressed => {
                 if let PhysicalKey::Code(key) = event.physical_key {
-                    scene.key(event_loop, key, event.repeat);
+                    let command = if cfg!(target_os = "macos") {
+                        scene.modifiers.super_key()
+                    } else {
+                        scene.modifiers.control_key()
+                    };
+                    if command && !event.repeat && key == KeyCode::KeyO {
+                        self.commands.push(menu::Command::Open);
+                    } else if command && !event.repeat && key == KeyCode::KeyR {
+                        self.commands.push(menu::Command::Reload);
+                    } else {
+                        scene.key(event_loop, key, event.repeat);
+                    }
                 }
             }
             WindowEvent::MouseInput {
@@ -533,21 +712,40 @@ impl ApplicationHandler for App {
         }
     }
     fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
-        if let Some(scene) = &mut self.scene {
-            // Contain unexpected backend panics before they cross an AppKit C ABI boundary.
-            let result =
-                catch_unwind(AssertUnwindSafe(|| scene.service())).unwrap_or_else(|payload| {
-                    let message = payload
-                        .downcast_ref::<String>()
-                        .map(String::as_str)
-                        .or_else(|| payload.downcast_ref::<&str>().copied())
-                        .unwrap_or("unknown graphics backend panic");
-                    Err(anyhow::anyhow!("desktop update failed: {message}"))
-                });
-            if let Err(error) = result {
-                eprintln!("Desktop update stopped: {error:#}");
-                self.error = Some(error);
-                event_loop.exit();
+        // Contain unexpected backend panics before they cross an AppKit C ABI boundary.
+        let result =
+            catch_unwind(AssertUnwindSafe(|| self.service(event_loop))).unwrap_or_else(|payload| {
+                let message = payload
+                    .downcast_ref::<String>()
+                    .map(String::as_str)
+                    .or_else(|| payload.downcast_ref::<&str>().copied())
+                    .unwrap_or("unknown graphics backend panic");
+                Err(anyhow::anyhow!("desktop update failed: {message}"))
+            });
+        if let Err(error) = result {
+            eprintln!("Desktop update stopped: {error:#}");
+            self.error = Some(error);
+            event_loop.exit();
+        }
+    }
+    fn user_event(&mut self, _: &ActiveEventLoop, event: UserEvent) {
+        match event {
+            UserEvent::Menu(id) => {
+                if let Some(command) = self.menu.as_ref().and_then(|menu| menu.command(&id)) {
+                    self.commands.push(command);
+                }
+            }
+            UserEvent::Picked(path) => {
+                self.dialog_open = false;
+                if let Some(path) = path {
+                    self.request_load(path);
+                }
+            }
+            UserEvent::AlertClosed => self.dialog_open = false,
+            UserEvent::Loaded(loaded) => {
+                if self.loader.is_current(&loaded) {
+                    self.pending_load = Some(*loaded);
+                }
             }
         }
     }
@@ -563,9 +761,10 @@ fn run() -> Result<()> {
         None => default_sample()?,
     };
     ensure!(args.next().is_none(), "expected at most one avatar path");
-    let avatar = Avatar::open(path)
+    let path = loading::avatar_path(&path)?;
+    let avatar = Avatar::open(&path)
         .context("Could not load avatar; a built project needs rig.json and built/ PNG assets")?;
-    let mut builder = EventLoop::builder();
+    let mut builder = EventLoop::<UserEvent>::with_user_event();
     #[cfg(target_os = "macos")]
     {
         use winit::platform::macos::{ActivationPolicy, EventLoopBuilderExtMacOS};
@@ -573,10 +772,28 @@ fn run() -> Result<()> {
     }
     let event_loop = builder.build()?;
     event_loop.set_control_flow(ControlFlow::Wait);
+    let proxy = event_loop.create_proxy();
+    let notify = proxy.clone();
+    let loader = Loader::new(move |loaded| {
+        let _ = notify.send_event(UserEvent::Loaded(Box::new(loaded)));
+    })?;
+    let file = Recent::config_file();
+    let recent = Recent::load(file.clone()).unwrap_or_else(|error| {
+        eprintln!("Could not read recent avatars: {error:#}");
+        Recent::empty(file)
+    });
     let mut app = App {
         avatar: Some(avatar),
         scene: None,
         error: None,
+        current_path: path,
+        recent,
+        loader,
+        pending_load: None,
+        proxy,
+        menu: None,
+        commands: Vec::new(),
+        dialog_open: false,
     };
     event_loop.run_app(&mut app)?;
     if let Some(error) = app.error {
@@ -602,7 +819,7 @@ mod tests {
             pad_side: 0.0,
             fit: Fit::Contain,
         };
-        let size = base_size(&view);
+        let size = geometry::base_size(&view);
         assert!((size.height - 372.0).abs() < 1e-8);
         for dpr in [1.0, 2.0] {
             let physical: PhysicalSize<u32> = size.to_physical(dpr);

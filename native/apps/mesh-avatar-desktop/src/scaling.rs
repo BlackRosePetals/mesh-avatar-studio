@@ -11,6 +11,7 @@ pub struct ScaleBounds {
     pub texture_limit: u32,
 }
 
+#[derive(Clone)]
 pub struct Scaling {
     base: LogicalSize<f64>,
     zoom: f64,
@@ -54,6 +55,15 @@ impl Scaling {
     /// Also reapply bounds when moving between monitors with different pixel ratios.
     pub fn refresh(&mut self, bounds: ScaleBounds) {
         self.change(0.0, bounds);
+    }
+
+    /// Prepare a different avatar's aspect without changing the live scaling state.
+    pub fn rebase(&self, base: LogicalSize<f64>, bounds: ScaleBounds) -> Result<Self> {
+        let mut replacement = Self::new(base)?;
+        replacement.zoom = self.zoom;
+        replacement.refresh(bounds);
+        ensure!(replacement.pending.is_some(), "invalid scale bounds");
+        Ok(replacement)
     }
 
     fn change(&mut self, amount: f64, bounds: ScaleBounds) {

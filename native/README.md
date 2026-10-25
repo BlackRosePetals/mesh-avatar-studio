@@ -42,8 +42,25 @@ Scroll and keyboard scaling share a 40%–400% range, further limited by the
 monitor's size and the GPU's texture limit. Input bursts are combined before
 resizing; rendering waits until the surface and window have matching sizes.
 
+On macOS, **File → Open Avatar…** opens a native dialog for either a `.mavatar`
+archive or a project folder containing `rig.json` and `built/`. You can also drop
+either onto the avatar window. Loading runs in the background; an invalid avatar
+leaves the current one displayed and shows an error. A successful switch rebuilds
+its GPU resources and viewport, keeps the current zoom within the new size limits,
+preserves the window's top-left position and click-through state, and prints the
+new motion list in the terminal.
+
+**File → Open Recent** keeps the last eight successfully opened paths. They are
+stored in `mesh-avatar-desktop/recent.json` under the OS user configuration
+directory (`~/Library/Application Support/` on macOS). Missing paths are removed
+at startup and when the app regains focus. **File → Reload** reopens the current
+avatar after edits. Loading a new avatar resets expressions and animation state.
+
 | Control | Action |
 |---|---|
+| Command + `O` | Open an avatar archive or built project folder on macOS |
+| Command + `R` | Reload the current avatar |
+| Drop a `.mavatar` or project folder | Switch avatars in the same window |
 | Left-drag | Move the avatar window |
 | Scroll | Scale the window |
 | Command + `+` / `-` | Scale the window |
@@ -102,6 +119,9 @@ Metal backend on macOS, and `--dpr=2` checks equal physical sizes at HiDPI.
 - Windows and Linux desktop behavior has not been verified. Window transparency,
   always-on-top behavior and cursor click-through depend on the OS compositor.
   The app exits if a transparent surface is unavailable.
+- The native menu bar and Open Avatar dialog are macOS-only. The executable
+  embeds the name “Mesh Avatar” without an app bundle; the name shown elsewhere
+  by macOS can depend on how it was launched.
 - Desktop input is limited to the controls above. Camera tracking, microphone
   input, audio playback and lighting are not included.
 - The desktop is a Cargo-built executable, without an installer, signed app
