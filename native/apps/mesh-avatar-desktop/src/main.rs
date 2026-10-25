@@ -6,6 +6,8 @@ mod presentation;
 mod scaling;
 mod screens;
 mod settings;
+mod status_bar;
+mod window_controls;
 use anyhow::{bail, ensure, Context, Result};
 use geometry::{fit_base, switch_layout};
 use loading::{Loaded, Loader, Recent};
@@ -29,6 +31,7 @@ use std::{
     },
     time::Instant,
 };
+use window_controls::WindowControls;
 use winit::{
     application::ApplicationHandler,
     dpi::{LogicalPosition, PhysicalPosition, PhysicalSize, Position},
@@ -157,7 +160,7 @@ struct Scene {
     gpu_failed: Arc<AtomicBool>,
     modifiers: ModifiersState,
     expression_index: usize,
-    click_through: bool,
+    controls: WindowControls,
     occluded: bool,
 }
 impl Scene {
@@ -296,7 +299,7 @@ impl Scene {
             gpu_failed,
             modifiers: ModifiersState::empty(),
             expression_index: 0,
-            click_through: false,
+            controls: WindowControls::default(),
             occluded: false,
         })
     }
@@ -406,14 +409,15 @@ impl Scene {
                 self.resize(size)?;
             }
         }
-        if std::mem::take(&mut self.redraw_requested) && !self.occluded {
+        self.refresh_visibility();
+        if std::mem::take(&mut self.redraw_requested) && self.controls.visible && !self.occluded {
             self.redraw()?;
         }
         ensure!(
             !self.gpu_failed.load(Ordering::Relaxed),
             "graphics device reported an error"
         );
-        if !self.occluded {
+        if self.controls.visible && !self.occluded {
             self.window.request_redraw();
         }
         Ok(())
@@ -493,13 +497,7 @@ impl Scene {
                 "こんにちは。きょうも、いっしょにあいうえおをれんしゅうしましょう。",
                 SpeakOptions::default(),
             ),
-            KeyCode::KeyC => match self.window.set_cursor_hittest(self.click_through) {
-                Ok(()) => {
-                    self.click_through = !self.click_through;
-                    eprintln!("Click-through {}. Focus Mesh Avatar with the Dock or app switcher, then press C to turn it off.",if self.click_through {"on"} else {"off"});
-                }
-                Err(error) => eprintln!("Could not change click-through: {error}"),
-            },
+            KeyCode::KeyC => self.toggle_click_through(),
             KeyCode::Digit1
             | KeyCode::Digit2
             | KeyCode::Digit3
@@ -532,6 +530,32 @@ impl Scene {
             self.expression_index = index;
             self.avatar.set_expression(name);
             eprintln!("Expression: {name}");
+        }
+    }
+    fn toggle_click_through(&mut self) {
+        let window = &self.window;
+        match self.controls.set_click_through(!self.controls.click_through, |enabled|window.set_cursor_hittest(!enabled)) {
+            Ok(()) => eprintln!("Click-through {}. Use the Mesh Avatar status-bar icon to turn it off, or focus the app and press C.", if self.controls.click_through {"on"} else {"off"}),
+            Err(error) => eprintln!("Could not change click-through: {error}"),
+        }
+    }
+    fn refresh_visibility(&mut self) {
+        if let Some(visible) = self.window.is_visible() {
+            self.controls.visible = visible;
+        }
+    }
+    fn set_visible(&mut self, visible: bool) {
+        if visible {
+            self.window.set_minimized(false);
+        }
+        self.window.set_visible(visible);
+        self.controls.visible = visible;
+        if visible {
+            self.occluded = false;
+            self.last_frame = Instant::now();
+            self.redraw_requested = true;
+            self.window.focus_window();
+            self.window.request_redraw();
         }
     }
     fn placement(&self, include_pending: bool) -> Option<Placement> {
@@ -646,6 +670,9 @@ impl App {
     }
     fn service(&mut self, event_loop: &ActiveEventLoop) -> Result<()> {
         self.observe_settings(Instant::now(), false);
+        if let Some(scene) = &mut self.scene {
+            scene.refresh_visibility();
+        }
         for command in std::mem::take(&mut self.commands) {
             match command {
                 menu::Command::Quit => {
@@ -653,7 +680,8 @@ impl App {
                     return Ok(());
                 }
                 menu::Command::Open if !self.dialog_open => {
-                    if let Some(scene) = &self.scene {
+                    if let Some(scene) = &mut self.scene {
+                        scene.set_visible(true);
                         let directory = if self.current_path.is_dir() {
                             Some(self.current_path.as_path())
                         } else {
@@ -666,6 +694,9 @@ impl App {
                     }
                 }
                 menu::Command::Recent(path) => {
+                    if let Some(scene) = &mut self.scene {
+                        scene.set_visible(true);
+                    }
                     self.refresh_recent();
                     self.request_load(path);
                 }
@@ -678,6 +709,22 @@ impl App {
                 menu::Command::Expression(name) => {
                     if let Some(scene) = &mut self.scene {
                         scene.select_expression(&name);
+                    }
+                }
+                menu::Command::ToggleVisible => {
+                    let now = Instant::now();
+                    self.observe_settings(now, true);
+                    if let Some(scene) = &mut self.scene {
+                        scene.set_visible(!scene.controls.visible);
+                    }
+                    // Hidden windows stop requesting frames, so finish any pending save now.
+                    if let Err(error) = self.settings.flush(now, true) {
+                        eprintln!("Could not save window settings: {error:#}");
+                    }
+                }
+                menu::Command::ToggleClickThrough => {
+                    if let Some(scene) = &mut self.scene {
+                        scene.toggle_click_through();
                     }
                 }
                 _ => {}
@@ -714,6 +761,9 @@ impl App {
         }
         if let Some(scene) = &mut self.scene {
             scene.service()?;
+        }
+        if let (Some(menu), Some(scene)) = (&mut self.menu, &self.scene) {
+            menu.update_controls(scene.controls);
         }
         let now = Instant::now();
         self.observe_settings(now, false);

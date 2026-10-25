@@ -89,10 +89,21 @@ switching avatars; the keyboard controls below continue to work.
 | Escape or Command + `Q` | Quit |
 
 Controls apply while the avatar app has keyboard focus. With click-through on,
-mouse events go to the window underneath. Use the Dock or Command-Tab to focus
-the avatar app again, then press `C` to turn click-through off. The toggle is not
-a global shortcut. If focus cannot be restored, quit from the Dock and relaunch;
-click-through always starts off.
+mouse events go to the window underneath. On macOS, click the monochrome avatar
+icon in the system status bar to open its menu. **Hide Avatar / Show Avatar**
+toggles the avatar window; the status icon stays available while it is hidden.
+**Click-through** has a checkmark when enabled and can turn click-through off
+without focusing the avatar. The `C` key and this checkmark use the same state.
+
+The status menu also has **Open Avatar…**, the same **Open Recent** list as the
+app menu, and **Quit Mesh Avatar**. Opening an avatar from this menu first shows
+the avatar window, including when the file dialog is cancelled. Hiding keeps the
+avatar loaded and pauses rendering. Visibility and click-through are not saved;
+the avatar starts visible with click-through off on the next launch.
+
+If the status icon is unavailable, use the Dock or Command-Tab to focus the app,
+then press `C`. This is not a global shortcut. If focus cannot be restored, quit
+from the Dock and relaunch.
 
 Idle movement, blinking, breathing and occasional motions run automatically.
 Rendering follows the display's presentation rate. Resizing and monitor scale
@@ -137,7 +148,7 @@ Metal backend on macOS, and `--dpr=2` checks equal physical sizes at HiDPI.
 - Windows and Linux desktop behavior has not been verified. Window transparency,
   always-on-top behavior and cursor click-through depend on the OS compositor.
   The app exits if a transparent surface is unavailable.
-- The native menu bar and Open Avatar dialog are macOS-only. The executable
+- The native menu bar, status-bar icon and Open Avatar dialog are macOS-only. The executable
   embeds the name “Mesh Avatar” without an app bundle; the name shown elsewhere
   by macOS can depend on how it was launched.
 - Desktop input is limited to the controls above. Camera tracking, microphone
