@@ -164,8 +164,16 @@ pub(crate) fn insert(entry: Entry) -> Result<MaHandle> {
     Ok(id)
 }
 pub(crate) fn allocate_handle() -> Result<MaHandle> {
-    NEXT.fetch_update(Ordering::Relaxed, Ordering::Relaxed, |v| v.checked_add(1))
-        .map_err(|_| Error::new(MA_INVALID_STATE, "handle space exhausted"))
+    let mut current = NEXT.load(Ordering::Relaxed);
+    loop {
+        let next = current
+            .checked_add(1)
+            .ok_or_else(|| Error::new(MA_INVALID_STATE, "handle space exhausted"))?;
+        match NEXT.compare_exchange_weak(current, next, Ordering::Relaxed, Ordering::Relaxed) {
+            Ok(previous) => return Ok(previous),
+            Err(actual) => current = actual,
+        }
+    }
 }
 pub(crate) fn with_entry<T>(
     handle: MaHandle,
