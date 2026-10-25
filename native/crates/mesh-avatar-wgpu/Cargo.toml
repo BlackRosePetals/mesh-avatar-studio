@@ -1,0 +1,9 @@
+[package]
+name = "mesh-avatar-wgpu"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+mesh-avatar-core.workspace = true
