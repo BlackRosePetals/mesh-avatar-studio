@@ -52,8 +52,8 @@ On macOS, **File → Open Avatar…** opens a native dialog for either a `.mavat
 archive or a project folder containing `rig.json` and `built/`. You can also drop
 either onto the avatar window. Loading runs in the background; an invalid avatar
 leaves the current one displayed and shows an error. A successful switch rebuilds
-its GPU resources and viewport, keeps the current zoom within the new size limits,
-preserves the window's top-left position and click-through state, and prints the
+its GPU resources and viewport, restores the saved placement within the new size limits,
+preserves the click-through state, and prints the
 new motion list in the terminal.
 
 **File → Open Recent** keeps the last eight successfully opened paths. They are
@@ -61,6 +61,18 @@ stored in `mesh-avatar-desktop/recent.json` under the OS user configuration
 directory (`~/Library/Application Support/` on macOS). Missing paths are removed
 at startup and when the app regains focus. **File → Reload** reopens the current
 avatar after edits. Loading a new avatar resets expressions and animation state.
+
+Window position (the outer top-left in logical coordinates) and zoom are saved
+per avatar path in `mesh-avatar-desktop/settings.json` in the same configuration
+directory. On launch and avatar switches, the app restores that avatar's settings,
+or uses the last window placement if that avatar has no saved settings. Restored
+windows are fitted to a connected monitor; on macOS this excludes the Dock and
+menu bar. Changes are saved after 0.5 seconds without further movement or scaling,
+and on normal quit. Missing or corrupt settings use the default placement.
+
+On macOS, **Avatar → Motion** lists every motion by label, and
+**Avatar → Expression** selects a live expression. These menus are rebuilt when
+switching avatars; the keyboard controls below continue to work.
 
 | Control | Action |
 |---|---|
@@ -131,6 +143,6 @@ Metal backend on macOS, and `--dpr=2` checks equal physical sizes at HiDPI.
 - Desktop input is limited to the controls above. Camera tracking, microphone
   input, audio playback and lighting are not included.
 - The desktop is a Cargo-built executable, without an installer, signed app
-  bundle or global keyboard shortcuts. Window position and scale reset on launch.
+  bundle or global keyboard shortcuts.
 - GPU rasterization and antialiasing can differ slightly from Chromium. Compare
   premultiplied colors when inspecting nearly transparent image edges.

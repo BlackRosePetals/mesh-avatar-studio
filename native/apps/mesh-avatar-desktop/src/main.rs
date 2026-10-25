@@ -1,11 +1,15 @@
 mod geometry;
 mod loading;
 mod menu;
+mod menu_model;
 mod presentation;
 mod scaling;
+mod screens;
+mod settings;
 use anyhow::{bail, ensure, Context, Result};
 use geometry::{fit_base, switch_layout};
 use loading::{Loaded, Loader, Recent};
+use menu_model::AvatarMenu;
 use mesh_avatar_core::{
     engine::{expression::OVERLAY_EXPRESSIONS, motion::SpeakOptions},
     format::AvatarPackage,
@@ -14,6 +18,7 @@ use mesh_avatar_core::{
 use mesh_avatar_wgpu::{Fit, Renderer, ViewOptions};
 use presentation::StraightAlpha;
 use scaling::{render_size, ScaleBounds, Scaling};
+use settings::{Placement, Settings};
 use std::{
     env,
     panic::{catch_unwind, AssertUnwindSafe},
@@ -26,7 +31,7 @@ use std::{
 };
 use winit::{
     application::ApplicationHandler,
-    dpi::{PhysicalPosition, PhysicalSize},
+    dpi::{LogicalPosition, PhysicalPosition, PhysicalSize, Position},
     event::{ElementState, MouseButton, WindowEvent},
     event_loop::{ActiveEventLoop, ControlFlow, EventLoop, EventLoopProxy},
     keyboard::{KeyCode, ModifiersState, PhysicalKey},
@@ -146,7 +151,7 @@ struct Scene {
     top_edge: TopEdgeGuard,
     last_frame: Instant,
     scaling: Scaling,
-    pending_position: Option<PhysicalPosition<i32>>,
+    pending_position: Option<Position>,
     pending_surface_size: Option<PhysicalSize<u32>>,
     redraw_requested: bool,
     gpu_failed: Arc<AtomicBool>,
@@ -271,9 +276,6 @@ impl Scene {
         );
         eprintln!("Drag to move · scroll or Cmd +/- to scale · E expression · K kana · C click-through · Esc quit");
         print_motions(&avatar);
-        window.set_visible(true);
-        window.focus_window();
-        window.request_redraw();
         Ok(Self {
             surface,
             window,
@@ -368,24 +370,21 @@ impl Scene {
         self.view = view;
         self.top_edge = top_edge;
         self.scaling = layout.scaling;
-        self.pending_position = Some(layout.position);
+        self.pending_position = Some(layout.position.into());
         self.expression_index = 0;
         self.last_frame = Instant::now();
         self.redraw_requested = true;
         print_motions(&self.avatar);
         Ok(())
     }
-    /// Run native resize and GPU work after input/drawRect callbacks return.
-    fn service(&mut self) -> Result<()> {
-        ensure!(
-            !self.gpu_failed.load(Ordering::Relaxed),
-            "graphics device reported an error"
-        );
+    fn apply_window_changes(&mut self) {
         if let Some(desired) = self.scaling.take_request() {
-            if desired != self.window.inner_size() {
+            if desired != self.window.inner_size() || self.pending_position.is_some() {
                 // macOS returns None and queues Resized. Synchronous platforms may return
                 // the accepted size without sending a notification; treat it identically.
-                if let Some(accepted) = self.window.request_inner_size(desired) {
+                // Logical sizes remain correct when a restore also crosses pixel ratios.
+                if let Some(accepted) = self.window.request_inner_size(self.scaling.logical_size())
+                {
                     self.pending_surface_size = Some(accepted);
                 }
             }
@@ -393,6 +392,14 @@ impl Scene {
         if let Some(position) = self.pending_position.take() {
             self.window.set_outer_position(position);
         }
+    }
+    /// Run native resize and GPU work after input/drawRect callbacks return.
+    fn service(&mut self) -> Result<()> {
+        ensure!(
+            !self.gpu_failed.load(Ordering::Relaxed),
+            "graphics device reported an error"
+        );
+        self.apply_window_changes();
         if let Some(size) = self.pending_surface_size.take() {
             // Several notifications can be queued during a trackpad input burst.
             if size == self.window.inner_size() {
@@ -479,10 +486,8 @@ impl Scene {
             }
             _ if repeat => {}
             KeyCode::KeyE => {
-                self.expression_index = (self.expression_index + 1) % OVERLAY_EXPRESSIONS.len();
-                let name = OVERLAY_EXPRESSIONS[self.expression_index].0;
-                self.avatar.set_expression(name);
-                eprintln!("Expression: {name}");
+                let next = (self.expression_index + 1) % OVERLAY_EXPRESSIONS.len();
+                self.select_expression(OVERLAY_EXPRESSIONS[next].0);
             }
             KeyCode::KeyK => self.avatar.speak_kana(
                 "こんにちは。きょうも、いっしょにあいうえおをれんしゅうしましょう。",
@@ -522,6 +527,36 @@ impl Scene {
             _ => {}
         }
     }
+    fn select_expression(&mut self, name: &str) {
+        if let Some(index) = OVERLAY_EXPRESSIONS.iter().position(|(n, _)| *n == name) {
+            self.expression_index = index;
+            self.avatar.set_expression(name);
+            eprintln!("Expression: {name}");
+        }
+    }
+    fn placement(&self, include_pending: bool) -> Option<Placement> {
+        if !include_pending
+            && (self.scaling.has_request()
+                || self.pending_position.is_some()
+                || self.pending_surface_size.is_some()
+                || self.window.inner_size()
+                    != PhysicalSize::new(self.config.width, self.config.height))
+        {
+            return None;
+        }
+        let position = match self.pending_position {
+            Some(position) => position.to_logical::<f64>(self.window.scale_factor()),
+            None => self
+                .window
+                .outer_position()
+                .ok()?
+                .to_logical::<f64>(self.window.scale_factor()),
+        };
+        Some(Placement {
+            position: [position.x, position.y],
+            zoom: self.scaling.zoom(),
+        })
+    }
 }
 
 enum UserEvent {
@@ -542,8 +577,45 @@ struct App {
     menu: Option<menu::AppMenu>,
     commands: Vec<menu::Command>,
     dialog_open: bool,
+    settings: Settings,
 }
 impl App {
+    fn observe_settings(&mut self, now: Instant, include_pending: bool) {
+        if let Some(placement) = self
+            .scene
+            .as_ref()
+            .and_then(|scene| scene.placement(include_pending))
+        {
+            self.settings.record(&self.current_path, placement, now);
+        }
+    }
+    fn restore_settings(&mut self, event_loop: &ActiveEventLoop) {
+        if let Some(scene) = &mut self.scene {
+            let placement = self
+                .settings
+                .placement(&self.current_path)
+                .or_else(|| scene.placement(false));
+            if let Some(restored) = placement.and_then(|placement| {
+                settings::restore(
+                    &scene.view,
+                    placement,
+                    &screens::visible_areas(event_loop),
+                    scene.device.limits().max_texture_dimension_2d,
+                )
+            }) {
+                scene.scaling = restored.scaling;
+                scene.pending_position =
+                    Some(LogicalPosition::new(restored.position[0], restored.position[1]).into());
+            }
+        }
+    }
+    fn refresh_avatar_menu(&mut self) {
+        if let (Some(menu), Some(scene)) = (&mut self.menu, &self.scene) {
+            if let Err(error) = menu.set_avatar(AvatarMenu::new(scene.avatar.motions())) {
+                eprintln!("Could not update avatar menu: {error:#}");
+            }
+        }
+    }
     fn refresh_recent(&mut self) {
         if self.recent.prune() {
             if let Err(error) = self.recent.save() {
@@ -573,6 +645,7 @@ impl App {
         }
     }
     fn service(&mut self, event_loop: &ActiveEventLoop) -> Result<()> {
+        self.observe_settings(Instant::now(), false);
         for command in std::mem::take(&mut self.commands) {
             match command {
                 menu::Command::Quit => {
@@ -597,6 +670,16 @@ impl App {
                     self.request_load(path);
                 }
                 menu::Command::Reload => self.request_load(self.current_path.clone()),
+                menu::Command::Play(id) => {
+                    if let Some(scene) = &mut self.scene {
+                        scene.avatar.play(&id);
+                    }
+                }
+                menu::Command::Expression(name) => {
+                    if let Some(scene) = &mut self.scene {
+                        scene.select_expression(&name);
+                    }
+                }
                 _ => {}
             }
         }
@@ -619,6 +702,8 @@ impl App {
                 }) {
                 Ok(()) => {
                     self.current_path = loaded.path;
+                    self.restore_settings(event_loop);
+                    self.refresh_avatar_menu();
                     if let Err(error) = self.recent.record(&self.current_path) {
                         eprintln!("Could not save recent avatars: {error:#}");
                     }
@@ -629,6 +714,11 @@ impl App {
         }
         if let Some(scene) = &mut self.scene {
             scene.service()?;
+        }
+        let now = Instant::now();
+        self.observe_settings(now, false);
+        if let Err(error) = self.settings.flush(now, false) {
+            eprintln!("Could not save window settings: {error:#}");
         }
         Ok(())
     }
@@ -645,12 +735,21 @@ impl ApplicationHandler<UserEvent> for App {
             match pollster::block_on(Scene::new(event_loop, avatar)) {
                 Ok(scene) => {
                     self.scene = Some(scene);
+                    self.restore_settings(event_loop);
                     if let Err(error) = self.recent.record(&self.current_path) {
                         eprintln!("Could not save recent avatars: {error:#}");
                     }
                     match menu::AppMenu::install(self.proxy.clone(), self.recent.entries()) {
                         Ok(menu) => self.menu = Some(menu),
                         Err(error) => eprintln!("Could not install avatar menu: {error:#}"),
+                    }
+                    self.refresh_avatar_menu();
+                    if let Some(scene) = &mut self.scene {
+                        // Apply the restored layout while hidden to avoid a startup position flash.
+                        scene.apply_window_changes();
+                        scene.window.set_visible(true);
+                        scene.window.focus_window();
+                        scene.window.request_redraw();
                     }
                 }
                 Err(error) => {
@@ -749,6 +848,13 @@ impl ApplicationHandler<UserEvent> for App {
             }
         }
     }
+    fn exiting(&mut self, _: &ActiveEventLoop) {
+        let now = Instant::now();
+        self.observe_settings(now, true);
+        if let Err(error) = self.settings.flush(now, true) {
+            eprintln!("Could not save window settings on exit: {error:#}");
+        }
+    }
 }
 fn run() -> Result<()> {
     let mut args = env::args_os().skip(1);
@@ -794,6 +900,7 @@ fn run() -> Result<()> {
         menu: None,
         commands: Vec::new(),
         dialog_open: false,
+        settings: Settings::load(Settings::config_file()),
     };
     event_loop.run_app(&mut app)?;
     if let Some(error) = app.error {
