@@ -10,6 +10,7 @@ publish = false
 
 [workspace.dependencies]
 mesh-avatar-core = { path = "crates/mesh-avatar-core" }
+mesh-avatar-wgpu = { path = "crates/mesh-avatar-wgpu" }
 anyhow = "1"
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["float_roundtrip"] }
@@ -18,3 +19,4 @@ zip = { version = "2", default-features = false }
 wgpu = "27"
 pollster = "0.4"
 bytemuck = { version = "1", features = ["derive"] }
+winit = "0.30"

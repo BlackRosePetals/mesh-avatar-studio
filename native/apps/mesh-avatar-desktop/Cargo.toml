@@ -4,3 +4,11 @@ version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 publish.workspace = true
+
+[dependencies]
+mesh-avatar-core.workspace = true
+mesh-avatar-wgpu.workspace = true
+winit.workspace = true
+wgpu.workspace = true
+pollster.workspace = true
+anyhow.workspace = true
