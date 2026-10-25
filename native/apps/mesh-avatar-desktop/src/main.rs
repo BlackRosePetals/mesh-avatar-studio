@@ -2,6 +2,8 @@ mod geometry;
 mod loading;
 mod menu;
 mod menu_model;
+mod microphone;
+mod microphone_menu;
 mod presentation;
 mod scaling;
 mod screens;
@@ -588,6 +590,7 @@ enum UserEvent {
     Picked(Option<PathBuf>),
     AlertClosed,
     Loaded(Box<Loaded>),
+    Microphone(microphone::Event),
 }
 struct App {
     avatar: Option<Avatar>,
@@ -602,6 +605,8 @@ struct App {
     commands: Vec<menu::Command>,
     dialog_open: bool,
     settings: Settings,
+    microphone: microphone::Microphone,
+    mic_driving: bool,
 }
 impl App {
     fn observe_settings(&mut self, now: Instant, include_pending: bool) {
@@ -727,6 +732,12 @@ impl App {
                         scene.toggle_click_through();
                     }
                 }
+                menu::Command::ToggleMicrophone => {
+                    self.microphone.set_enabled(!self.microphone.state.enabled)
+                }
+                menu::Command::MicrophoneDevice(device) => self.microphone.select(device),
+                menu::Command::MicrophoneSensitivity(value) => self.microphone.sensitivity(value),
+                menu::Command::RefreshMicrophones => self.microphone.refresh(),
                 _ => {}
             }
         }
@@ -757,6 +768,28 @@ impl App {
                     self.refresh_recent();
                 }
                 Err(error) => self.load_error(&format!("{error:#}")),
+            }
+        }
+        let mic_active = self.microphone.state.enabled && !self.microphone.state.starting;
+        if let Some(scene) = &mut self.scene {
+            if mic_active {
+                if !self.mic_driving {
+                    scene.avatar.stop_lip_sync();
+                }
+                let (level, speaking) = self.microphone.level(Instant::now());
+                scene.avatar.set_speaking(speaking);
+                scene.avatar.set_voice_level(level);
+            } else if self.mic_driving {
+                scene.avatar.set_voice_level(0.0);
+                scene.avatar.set_speaking(false);
+            }
+        }
+        self.mic_driving = mic_active;
+        if let Some(menu) = &mut self.menu {
+            if let Some(state) = self.microphone.take_state() {
+                if let Err(error) = menu.update_microphone(&state) {
+                    eprintln!("Could not update microphone menu: {error:#}");
+                }
             }
         }
         if let Some(scene) = &mut self.scene {
@@ -839,6 +872,8 @@ impl ApplicationHandler<UserEvent> for App {
                         self.commands.push(menu::Command::Open);
                     } else if command && !event.repeat && key == KeyCode::KeyR {
                         self.commands.push(menu::Command::Reload);
+                    } else if key == KeyCode::KeyK && self.microphone.state.enabled {
+                        eprintln!("Disable the microphone before running the kana demo");
                     } else {
                         scene.key(event_loop, key, event.repeat);
                     }
@@ -896,9 +931,11 @@ impl ApplicationHandler<UserEvent> for App {
                     self.pending_load = Some(*loaded);
                 }
             }
+            UserEvent::Microphone(event) => self.microphone.event(event),
         }
     }
     fn exiting(&mut self, _: &ActiveEventLoop) {
+        self.microphone.set_enabled(false);
         let now = Instant::now();
         self.observe_settings(now, true);
         if let Err(error) = self.settings.flush(now, true) {
@@ -929,6 +966,10 @@ fn run() -> Result<()> {
     let event_loop = builder.build()?;
     event_loop.set_control_flow(ControlFlow::Wait);
     let proxy = event_loop.create_proxy();
+    let mic_notify = proxy.clone();
+    let microphone = microphone::Microphone::new(move |event| {
+        let _ = mic_notify.send_event(UserEvent::Microphone(event));
+    })?;
     let notify = proxy.clone();
     let loader = Loader::new(move |loaded| {
         let _ = notify.send_event(UserEvent::Loaded(Box::new(loaded)));
@@ -951,6 +992,8 @@ fn run() -> Result<()> {
         commands: Vec::new(),
         dialog_open: false,
         settings: Settings::load(Settings::config_file()),
+        microphone,
+        mic_driving: false,
     };
     event_loop.run_app(&mut app)?;
     if let Some(error) = app.error {
@@ -992,3 +1035,4 @@ mod tests {
         assert!((1254.0 * scale + offset - 372.0).abs() < 1e-3);
     }
 }
+mod audio_level;

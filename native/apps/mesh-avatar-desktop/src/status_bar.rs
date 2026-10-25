@@ -31,6 +31,7 @@ impl StatusBar {
         recent: &muda::Submenu,
         open: &muda::MenuItem,
         quit: &muda::MenuItem,
+        microphone: &muda::Submenu,
     ) -> anyhow::Result<Self> {
         use muda::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem};
         let menu = Menu::new();
@@ -40,6 +41,7 @@ impl StatusBar {
         menu.append_items(&[
             &visibility,
             &click_through,
+            microphone,
             &PredefinedMenuItem::separator(),
             open,
             recent,

@@ -17,6 +17,7 @@ serde.workspace = true
 dirs = "6"
 
 [target.'cfg(target_os = "macos")'.dependencies]
+cpal = { version = "0.18.2", default-features = false }
 muda = { version = "0.19.3", default-features = false }
 tray-icon = { version = "0.24.2", default-features = false }
 rfd = { version = "0.17", default-features = false }

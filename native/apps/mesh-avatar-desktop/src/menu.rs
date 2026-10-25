@@ -14,6 +14,10 @@ pub enum Command {
     Expression(String),
     ToggleVisible,
     ToggleClickThrough,
+    ToggleMicrophone,
+    MicrophoneDevice(Option<String>),
+    MicrophoneSensitivity(crate::audio_level::Sensitivity),
+    RefreshMicrophones,
 }
 
 #[cfg(target_os = "macos")]
@@ -38,6 +42,7 @@ mod platform {
         expressions: Submenu,
         avatar_model: AvatarMenu,
         status: Option<crate::status_bar::StatusBar>,
+        microphone: crate::microphone_menu::MicrophoneMenu,
     }
     impl AppMenu {
         pub fn install(proxy: EventLoopProxy<UserEvent>, paths: &[PathBuf]) -> Result<Self> {
@@ -87,14 +92,17 @@ mod platform {
             let motions = Submenu::new("Motion", true);
             let expressions = Submenu::new("Expression", true);
             let avatar = Submenu::with_items("Avatar", true, &[&motions, &expressions])?;
-            root.append_items(&[&app, &file, &avatar, &edit])?;
-            let status = match crate::status_bar::StatusBar::new(&recent, &open, &quit) {
-                Ok(status) => Some(status),
-                Err(error) => {
-                    eprintln!("Could not create status-bar icon: {error:#}");
-                    None
-                }
-            };
+            let microphone = crate::microphone_menu::MicrophoneMenu::new()?;
+            root.append_items(&[&app, &file, &avatar, &microphone.submenu, &edit])?;
+            let status =
+                match crate::status_bar::StatusBar::new(&recent, &open, &quit, &microphone.submenu)
+                {
+                    Ok(status) => Some(status),
+                    Err(error) => {
+                        eprintln!("Could not create status-bar icon: {error:#}");
+                        None
+                    }
+                };
             let mut menu = Self {
                 _root: root,
                 recent,
@@ -103,6 +111,7 @@ mod platform {
                 expressions,
                 avatar_model: AvatarMenu::new(&[]),
                 status,
+                microphone,
             };
             menu.set_recent(paths)?;
             MenuEvent::set_event_handler(Some(move |event: MenuEvent| {
@@ -142,7 +151,8 @@ mod platform {
                     .iter()
                     .find(|(item, _)| item.id().as_ref() == id)
                     .map(|(_, path)| Command::Recent(path.clone()))
-                    .or_else(|| self.avatar_model.command(id)),
+                    .or_else(|| self.avatar_model.command(id))
+                    .or_else(|| self.microphone.command(id)),
             }
         }
         pub fn set_avatar(&mut self, model: AvatarMenu) -> Result<()> {
@@ -170,6 +180,9 @@ mod platform {
             if let Some(status) = &mut self.status {
                 status.update(state);
             }
+        }
+        pub fn update_microphone(&mut self, state: &crate::microphone::State) -> Result<()> {
+            self.microphone.update(state)
         }
     }
 
@@ -231,6 +244,9 @@ mod platform {
             Ok(())
         }
         pub fn update_controls(&mut self, _: crate::window_controls::WindowControls) {}
+        pub fn update_microphone(&mut self, _: &crate::microphone::State) -> Result<()> {
+            Ok(())
+        }
     }
     pub fn open(_: EventLoopProxy<UserEvent>, _: &Window, _: Option<&Path>) -> Result<()> {
         anyhow::bail!("the native Open Avatar dialog is currently available only on macOS")

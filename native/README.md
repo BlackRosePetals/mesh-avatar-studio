@@ -110,6 +110,31 @@ Rendering follows the display's presentation rate. Resizing and monitor scale
 changes update the physical render size; animation time steps are capped at
 0.05 seconds after a stall or sleep.
 
+## Microphone lip sync (macOS)
+
+The app menu and status menu both have a **Microphone** submenu. Capture is off
+at startup. Choose **Enable Microphone** to drive the mouth from input volume;
+**Input Device** selects System Default or a named microphone. **Sensitivity**
+offers Low, Normal (default), and High. Try High for a quiet voice or Low if
+background noise opens the mouth. The noise gate, smoothing and release hold
+reduce rapid opening and closing around quiet input.
+
+On first enable, macOS asks for microphone permission. With this unbundled
+executable, permission is attributed to the terminal app used to launch it.
+Allow that terminal in **System Settings → Privacy & Security → Microphone**
+if permission was denied, then enable the microphone again.
+
+Only input levels are used; audio is not recorded or uploaded. This feature does
+not capture system playback. Capture stays enabled when the avatar is hidden or
+switched. Turn it off from either menu when finished; device, sensitivity and
+enabled state are not saved across launches. Disable it before using the `K`
+kana demo. Turning it off stops driving the mouth and returns to normal animation.
+
+If a device disconnects, the stream fails, or callbacks stop arriving, the
+microphone turns off and the submenu shows **Off:** followed by a reason.
+It does not restart automatically. Select an available input and enable it again;
+**Input Device → Refresh Devices** refreshes the device list.
+
 ## Render a PNG
 
 ```sh
@@ -151,8 +176,8 @@ Metal backend on macOS, and `--dpr=2` checks equal physical sizes at HiDPI.
 - The native menu bar, status-bar icon and Open Avatar dialog are macOS-only. The executable
   embeds the name “Mesh Avatar” without an app bundle; the name shown elsewhere
   by macOS can depend on how it was launched.
-- Desktop input is limited to the controls above. Camera tracking, microphone
-  input, audio playback and lighting are not included.
+- Microphone capture is currently macOS-only. Camera tracking, system-audio
+  capture, audio playback and lighting are not included.
 - The desktop is a Cargo-built executable, without an installer, signed app
   bundle or global keyboard shortcuts.
 - GPU rasterization and antialiasing can differ slightly from Chromium. Compare
