@@ -25,6 +25,15 @@ macro_rules! parameters {
         impl Default for Parameters {
             fn default() -> Self { Self { $($field: $default,)* eye_smile_l: None } }
         }
+        impl Parameters {
+            pub fn get(&self, id: &str) -> Option<f64> {
+                match id { $($id => Some(self.$field),)* "eyeSmileL" => self.eye_smile_l, _ => None }
+            }
+            pub fn set(&mut self, id: &str, value: f64) -> bool {
+                match id { $($id => self.$field = value,)* "eyeSmileL" => self.eye_smile_l = Some(value), _ => return false }
+                true
+            }
+        }
         pub const PARAMS: &[ParameterDefinition] = &[
             $(ParameterDefinition { id: $id, label: $label, min: $min, max: $max, default: $default, group: $group },)*
         ];

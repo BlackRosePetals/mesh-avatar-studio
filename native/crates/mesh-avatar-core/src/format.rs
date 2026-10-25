@@ -36,8 +36,12 @@ pub struct Studio {
 
 impl Manifest {
     fn parse(bytes: &[u8]) -> Result<Self> {
-        let m: Self =
+        let raw: Value =
             serde_json::from_slice(bytes).context("avatar.json: invalid manifest JSON")?;
+        if let Some(settings) = raw.get("lipSync") {
+            crate::engine::lip_sync::LipSyncSettings::parse(settings)?;
+        }
+        let m: Self = serde_json::from_value(raw).context("avatar.json: invalid manifest JSON")?;
         ensure!(
             m.format == "mesh-avatar" && m.version == 1,
             "avatar.json: unsupported format or version"
@@ -127,9 +131,15 @@ impl<'de> Deserialize<'de> for SpriteMetadata {
                         self,
                         mut map: M,
                     ) -> std::result::Result<Self::Value, M::Error> {
-                        let mut entries = Vec::new();
-                        while let Some(entry) = map.next_entry()? {
-                            entries.push(entry);
+                        let mut entries: Vec<(String, Rect)> = Vec::new();
+                        while let Some((name, rect)) = map.next_entry::<String, Rect>()? {
+                            if let Some((_, value)) =
+                                entries.iter_mut().find(|(key, _)| *key == name)
+                            {
+                                *value = rect;
+                            } else {
+                                entries.push((name, rect));
+                            }
                         }
                         Ok(OrderedLayers(entries))
                     }
@@ -567,6 +577,12 @@ impl AvatarPackage {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn duplicate_sprite_keys_keep_first_position_and_last_rectangle() {
+        let metadata: SpriteMetadata = serde_json::from_str(r#"{"build":"test","layers":{"eyes_half_0":[0,0,1,1],"eyes_closed_0":[1,1,2,2],"eyes_half_0":[2,2,3,3]}}"#).unwrap();
+        assert_eq!(metadata.layer_order, ["eyes_half_0", "eyes_closed_0"]);
+        assert_eq!(metadata.layers["eyes_half_0"], [2, 2, 3, 3]);
+    }
     use std::{
         io::Write,
         sync::{
@@ -758,6 +774,10 @@ mod tests {
     fn rejects_bad_rigs_metadata_and_images() {
         type Mutation = (&'static str, fn(&mut Value));
         let mutations: &[Mutation] = &[
+            ("avatar.json", |v| v["lipSync"] = Value::Null),
+            ("avatar.json", |v| {
+                v["lipSync"] = serde_json::json!({"granularity":2})
+            }),
             ("rig.json", |v| v["version"] = 2.into()),
             ("rig.json", |v| v["head"]["rx"] = 0.into()),
             ("rig.json", |v| v["mesh"]["baseCell"] = 0.into()),

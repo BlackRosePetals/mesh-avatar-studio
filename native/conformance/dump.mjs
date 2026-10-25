@@ -1,10 +1,11 @@
-// Run with Node.js 22.17+ from any directory: node native/conformance/dump.mjs
+// Run with Node.js 22.17+: node --experimental-strip-types native/conformance/dump.mjs
 import { existsSync } from 'node:fs';
 import { readFile, mkdir, writeFile } from 'node:fs/promises';
 import { registerHooks } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { PNG } from 'pngjs';
 import { dumpDeformation } from './deformation.mjs';
+import { dumpMotion } from './motion.mjs';
 
 // Match the runtime's bundler-style extensionless lighting imports in plain Node.
 const hooks = registerHooks({ resolve(specifier, context, next) {
@@ -19,7 +20,6 @@ const hooks = registerHooks({ resolve(specifier, context, next) {
 const { createRig } = await import('../../packages/runtime/src/engine/rig.js');
 const { createRenderer } = await import('../../packages/runtime/src/engine/renderer.js');
 const { parseRig } = await import('../../packages/runtime/src/rig/validate.ts');
-hooks.deregister();
 
 const sample = new URL('../../samples/miko-qipao/', import.meta.url);
 const json = async path => JSON.parse(await readFile(new URL(path, sample), 'utf8'));
@@ -64,3 +64,7 @@ await writeFile(new URL('grids.json', destination), JSON.stringify({ version: 1,
 console.log(`Wrote ${grids.length} layer/sprite grids and ${cases.length} edge cases to ${fileURLToPath(new URL('grids.json', destination))}`);
 images['hairmask.png'] = PNG.sync.read(await readFile(new URL('built/hairmask.png', sample)));
 await dumpDeformation({ rig, engine, grids, images, sprites, buildGrid, destination });
+await dumpMotion({ rig, engine, destination });
+const { dumpAvatar } = await import('./avatar.mjs');
+await dumpAvatar({ rig, metadata, sprites, images, destination });
+hooks.deregister();
