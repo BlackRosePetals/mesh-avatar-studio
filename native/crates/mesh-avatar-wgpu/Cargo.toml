@@ -7,3 +7,10 @@ publish.workspace = true
 
 [dependencies]
 mesh-avatar-core.workspace = true
+wgpu.workspace = true
+pollster.workspace = true
+bytemuck.workspace = true
+png.workspace = true
+anyhow.workspace = true
+serde.workspace = true
+serde_json.workspace = true

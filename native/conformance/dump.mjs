@@ -6,6 +6,9 @@ import { fileURLToPath } from 'node:url';
 import { PNG } from 'pngjs';
 import { dumpDeformation } from './deformation.mjs';
 import { dumpMotion } from './motion.mjs';
+import { execFileSync } from 'node:child_process';
+
+execFileSync(process.execPath, ['--experimental-strip-types', fileURLToPath(new URL('./sync-motion-data.mjs', import.meta.url)), '--check'], { stdio: 'inherit' });
 
 // Match the runtime's bundler-style extensionless lighting imports in plain Node.
 const hooks = registerHooks({ resolve(specifier, context, next) {
