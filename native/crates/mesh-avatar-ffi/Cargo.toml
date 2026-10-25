@@ -8,8 +8,14 @@ publish.workspace = true
 [lib]
 crate-type = ["cdylib", "staticlib", "rlib"]
 
+[features]
+default = []
+render = ["dep:mesh-avatar-wgpu", "dep:pollster"]
+
 [dependencies]
 mesh-avatar-core.workspace = true
+mesh-avatar-wgpu = { workspace = true, optional = true }
+pollster = { workspace = true, optional = true }
 
 [dev-dependencies]
 zip.workspace = true

@@ -40,4 +40,4 @@ parse_deps = false
 
 [export]
 item_types = ["constants", "enums", "structs", "typedefs", "functions"]
-exclude = ["Entries", "Entry", "CachedFrame", "Error", "Result"]
+exclude = ["Entries", "Entry", "CachedFrame", "Error", "Result", "RenderEntry", "RenderEntries", "MaRenderer", "MaRenderOptions", "MA_GPU_UNAVAILABLE", "MA_RENDER_ERROR", "MA_FIT_CONTAIN", "MA_FIT_COVER", "MA_RGBA_STRAIGHT", "MA_RGBA_PREMULTIPLIED", "mesh_avatar_renderer_create", "mesh_avatar_renderer_render", "mesh_avatar_renderer_resize", "mesh_avatar_renderer_destroy"]

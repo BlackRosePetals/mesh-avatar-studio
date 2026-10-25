@@ -142,7 +142,26 @@ bash native/conformance/ffi-header.sh
 bash native/conformance/ffi-header.sh --check
 ```
 
-CI使用相同版本检查头文件差异，并构建库、编译和运行C示例。C ABI仍为实验性功能，尚无GPU渲染入口；请用宿主渲染器绘制帧数据。
+CI使用相同版本检查两个头文件的差异，并构建库、编译和运行C示例。C ABI仍为实验性功能。
+
+### 可选的无窗口渲染
+
+```sh
+cargo build --release --manifest-path native/Cargo.toml -p mesh-avatar-ffi --features render
+make -C native/examples/c run-render
+```
+
+扩展使用 [`mesh_avatar_render.h`](include/mesh_avatar_render.h)，它包含CPU头文件，无需定义宏。只有用 `render` 功能构建的库才导出这些函数。默认构建仅依赖core。macOS的C Makefile会链接Metal等所需的系统框架。
+
+用头像句柄和 `MaRenderOptions` 创建渲染器，指定物理像素宽高、MSAA采样数（1或4）、contain/cover以及显式留白。可从 `mesh_avatar_get_info` 取得建议的留白值。
+渲染读取当前缓存帧，不推进动画，将紧密排列、从顶行开始的RGBA8复制到调用方提供的缓冲区。缓冲区至少需要 `宽*高*4` 字节，可选择非预乘或预乘Alpha。
+同步调用会等待GPU读回完成，不保留调用方缓冲区，也不使借用的帧指针失效。调整大小会保留fit、留白和采样数；调用方也应按新尺寸分配缓冲区。无效尺寸或缓冲区返回错误，不修改输出缓冲区。
+
+渲染器可以跨线程使用，同一渲染器及头像上的调用会被串行化。渲染器只引用头像，不拥有它；请先销毁渲染器，再销毁头像。头像销毁后渲染返回 `MA_INVALID_HANDLE`。捕获panic后，应销毁并重建受影响的对象。
+没有兼容GPU适配器时返回 `MA_GPU_UNAVAILABLE`；其他GPU错误返回 `MA_RENDER_ERROR`。示例和CI只在没有适配器时跳过渲染。
+
+示例验证两种Alpha格式和尺寸调整，并写入 `native/target/ffi-render.ppm`。PPM不支持Alpha，因此会将非预乘RGBA合成到白色背景上。不会打开窗口。
+CI还检查core的 `wasm32-unknown-unknown` 构建，不包含JavaScript绑定。
 
 ## 检查与画面对比
 

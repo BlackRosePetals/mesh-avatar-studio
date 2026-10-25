@@ -30,6 +30,10 @@ pub(crate) struct CachedFrame {
 // mutex; C callers must synchronize borrowed reads against tick/destroy.
 unsafe impl Send for CachedFrame {}
 impl CachedFrame {
+    #[cfg(feature = "render")]
+    pub fn frame(&self) -> &Frame {
+        &self._frame
+    }
     fn new(frame: Frame, ids: &BTreeMap<String, u32>) -> Result<Self> {
         let names: Vec<_> = frame
             .layers
@@ -152,14 +156,16 @@ fn entries() -> &'static Mutex<Entries> {
 }
 static NEXT: AtomicU64 = AtomicU64::new(1);
 pub(crate) fn insert(entry: Entry) -> Result<MaHandle> {
-    let id = NEXT
-        .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |v| v.checked_add(1))
-        .map_err(|_| Error::new(MA_INVALID_STATE, "handle space exhausted"))?;
+    let id = allocate_handle()?;
     entries()
         .lock()
         .map_err(|_| Error::new(MA_INVALID_STATE, "handle registry is poisoned"))?
         .insert(id, Arc::new(Mutex::new(entry)));
     Ok(id)
+}
+pub(crate) fn allocate_handle() -> Result<MaHandle> {
+    NEXT.fetch_update(Ordering::Relaxed, Ordering::Relaxed, |v| v.checked_add(1))
+        .map_err(|_| Error::new(MA_INVALID_STATE, "handle space exhausted"))
 }
 pub(crate) fn with_entry<T>(
     handle: MaHandle,

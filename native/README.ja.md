@@ -142,8 +142,27 @@ bash native/conformance/ffi-header.sh
 bash native/conformance/ffi-header.sh --check
 ```
 
-CIも同じバージョンでヘッダーの差分を確認し、ライブラリとCサンプルをビルド・実行します。
-C ABIは実験的な段階です。GPU描画用の関数はまだないため、フレームデータをホスト側のレンダラーで描画してください。
+CIも同じバージョンで両ヘッダーの差分を確認し、ライブラリとCサンプルをビルド・実行します。C ABIは実験的な段階です。
+
+### 任意機能のヘッドレス描画
+
+```sh
+cargo build --release --manifest-path native/Cargo.toml -p mesh-avatar-ffi --features render
+make -C native/examples/c run-render
+```
+
+描画用には [`mesh_avatar_render.h`](include/mesh_avatar_render.h) を読み込みます。このヘッダーはCPU用ヘッダーを含むため、マクロの指定は不要です。
+描画関数は `render` を有効にしたライブラリでのみ利用できます。通常ビルドの依存先はcoreだけです。macOSでは、C用MakefileがMetalなどの必要なフレームワークをリンクします。
+
+アバターのハンドルと `MaRenderOptions` でレンダラーを作成します。物理ピクセルの幅・高さ、MSAAのサンプル数（1または4）、contain/cover、余白を指定します。余白の推奨値は `mesh_avatar_get_info` で取得できます。
+描画は現在のキャッシュ済みフレームを読み取り、呼び出し側のバッファへRGBA8を上の行から隙間なくコピーします。アニメーションは進みません。バッファは `幅*高さ*4` バイト以上必要で、ストレート／プリマルチプライドのアルファを選べます。
+描画はGPUからの読み戻しが完了するまで待ちます。バッファを保持せず、借用中のフレームデータも無効にしません。リサイズ後もfit・余白・サンプル数は維持されますが、呼び出し側のバッファもサイズに合わせて確保してください。不正なサイズやバッファはエラーとなり、出力バッファは変更されません。
+
+レンダラーはスレッド間で移動でき、同じレンダラー・アバターへの呼び出しは直列に処理されます。アバターを所有しないため、レンダラーを先に破棄してください。アバター破棄後の描画は `MA_INVALID_HANDLE` を返します。封じ込められたpanicの影響を受けたオブジェクトは破棄して作り直してください。
+対応するGPUアダプターがない場合は `MA_GPU_UNAVAILABLE`、それ以外のGPUエラーは `MA_RENDER_ERROR` を返します。サンプルとCIはアダプターがない場合だけ描画をスキップします。
+
+サンプルはアルファの両形式とリサイズを検証し、`native/target/ffi-render.ppm` に保存します。PPMはアルファを持たないため、ストレートRGBAを白背景に合成します。ウィンドウは開きません。
+CIではcoreの `wasm32-unknown-unknown` 向けビルドも確認します。JavaScriptバインディングは含みません。
 
 ## チェックと見た目の比較
 

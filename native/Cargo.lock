@@ -1067,6 +1067,8 @@ name = "mesh-avatar-ffi"
 version = "0.1.0"
 dependencies = [
  "mesh-avatar-core",
+ "mesh-avatar-wgpu",
+ "pollster",
  "serde_json",
  "zip",
 ]

@@ -184,9 +184,41 @@ bash native/conformance/ffi-header.sh
 bash native/conformance/ffi-header.sh --check
 ```
 
-CI installs that version, verifies the header has no drift, builds both library
-types, and builds/runs the C example. The C ABI is experimental and has no GPU
-rendering entry point yet; use the frame data with a host renderer.
+CI installs that version, verifies both headers have no drift, builds both library
+types, and builds/runs the C examples. The C ABI remains experimental.
+
+### Optional headless rendering
+
+```sh
+cargo build --release --manifest-path native/Cargo.toml -p mesh-avatar-ffi --features render
+make -C native/examples/c run-render
+```
+
+Include [`mesh_avatar_render.h`](include/mesh_avatar_render.h) for this extension.
+It includes the CPU header and needs no macro; its functions are exported only
+when the library is built with `render`. Default builds depend only on core.
+On macOS, the C Makefile links the required Metal/system frameworks separately.
+
+Create a renderer with an avatar handle and `MaRenderOptions`: physical width/height,
+1 or 4 MSAA samples, contain/cover fit and explicit padding (available from
+`mesh_avatar_get_info`). Rendering reads the current cached frame without ticking
+and copies tightly packed, top-down RGBA8 into a caller-owned buffer of at least
+`width*height*4` bytes. Choose straight or premultiplied alpha. The synchronous
+readback does not retain the buffer or invalidate borrowed frame data. Resize
+keeps fit/padding/samples; resize the caller's buffer too. Invalid sizes/buffers
+return an error without changing the output buffer.
+
+Renderer calls may move between threads and are serialized per renderer and
+avatar. Renderers reference their avatar without owning it; destroy renderers
+before destroying the avatar. Rendering after avatar destruction returns
+`MA_INVALID_HANDLE`. Destroy/recreate objects affected by a contained panic.
+`MA_GPU_UNAVAILABLE` means no compatible adapter was found; other GPU errors use
+`MA_RENDER_ERROR`. The example/CI skip only the unavailable-adapter case.
+
+The example checks both alpha formats and resize, then writes
+`native/target/ffi-render.ppm` (straight RGBA composited over white, since PPM has
+no alpha). It does not open a window. CI also checks the core library for
+`wasm32-unknown-unknown`; JavaScript bindings are not included.
 
 ## Checks and visual comparison
 

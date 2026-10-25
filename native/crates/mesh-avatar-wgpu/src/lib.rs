@@ -551,6 +551,24 @@ impl Renderer {
         size: [u32; 2],
         view: &ViewOptions,
     ) -> Result<Vec<u8>> {
+        self.read_rgba(frame, size, view, true)
+    }
+    /// Render and read back tightly packed premultiplied RGBA8, top row first.
+    pub fn render_rgba_premultiplied(
+        &mut self,
+        frame: &Frame,
+        size: [u32; 2],
+        view: &ViewOptions,
+    ) -> Result<Vec<u8>> {
+        self.read_rgba(frame, size, view, false)
+    }
+    fn read_rgba(
+        &mut self,
+        frame: &Frame,
+        size: [u32; 2],
+        view: &ViewOptions,
+        straight: bool,
+    ) -> Result<Vec<u8>> {
         ensure!(
             self.format == wgpu::TextureFormat::Rgba8Unorm,
             "RGBA readback requires Rgba8Unorm"
@@ -620,6 +638,10 @@ impl Renderer {
         let bytes = buffer.slice(..).get_mapped_range();
         let mut out = Vec::with_capacity((size[0] * size[1] * 4) as usize);
         for row in bytes.chunks_exact(stride as usize) {
+            if !straight {
+                out.extend_from_slice(&row[..(size[0] * 4) as usize]);
+                continue;
+            }
             for p in row[..(size[0] * 4) as usize].as_chunks::<4>().0 {
                 let alpha = u32::from(p[3]);
                 let unpremultiply = |value: u8| {
@@ -716,6 +738,16 @@ mod tests {
         assert_eq!(&first[..4], &[0, 0, 0, 0]);
         let center = (4 * 8 + 4) * 4;
         for (actual, expected) in first[center..center + 4].iter().zip([200_u8, 100, 50, 128]) {
+            assert!(actual.abs_diff(expected) <= 1);
+        }
+        let premultiplied = renderer
+            .render_rgba_premultiplied(&frame, [8, 8], &view)
+            .unwrap();
+        assert_eq!(&premultiplied[..4], &[0, 0, 0, 0]);
+        for (actual, expected) in premultiplied[center..center + 4]
+            .iter()
+            .zip([100_u8, 50, 25, 128])
+        {
             assert!(actual.abs_diff(expected) <= 1);
         }
         for position in frame.layers[0].positions.as_chunks_mut::<2>().0 {
