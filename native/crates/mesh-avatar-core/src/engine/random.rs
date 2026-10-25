@@ -1,8 +1,9 @@
 //! Caller-injected randomness; core never reads a wall clock.
-pub trait RandomSource {
+/// Random sources travel with an avatar between host threads; captures must be Send.
+pub trait RandomSource: Send {
     fn next_f64(&mut self) -> f64;
 }
-impl<F: FnMut() -> f64> RandomSource for F {
+impl<F: FnMut() -> f64 + Send> RandomSource for F {
     fn next_f64(&mut self) -> f64 {
         self()
     }

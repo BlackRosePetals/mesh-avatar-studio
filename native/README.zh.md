@@ -114,6 +114,36 @@ cargo run --release --manifest-path native/Cargo.toml -p mesh-avatar-wgpu \
 未指定的姿势参数使用默认值。`--seconds` 会在渲染前以每秒 60 步推进虚拟形象的时间。
 `--help` 会列出视图边距、fit、表情和多重采样等选项。
 
+## 使用C ABI
+
+```sh
+cargo build --release --manifest-path native/Cargo.toml -p mesh-avatar-ffi
+make -C native/examples/c run
+```
+
+CPU库会在 `native/target/release/` 中生成 `libmesh_avatar_ffi.a` 和平台共享库（macOS上为 `libmesh_avatar_ffi.dylib`）。
+宿主程序需包含 [`mesh_avatar.h`](include/mesh_avatar.h)。C示例会加载示例虚拟形象、设置姿势、推进动画，读取几何数据、uniform和纹理，并检查无效输入的返回值，不会创建窗口或启用麦克风。
+
+使用 `mesh_avatar_open_path` 打开已构建的文件夹或归档，使用 `mesh_avatar_open_bytes` 打开内存中的归档。
+输入在调用期间读取或复制，打开成功后即可释放归档缓冲区。句柄是不透明的 `uint64_t` 标识符，0无效。
+句柄可在线程间传递；同一句柄的API调用在内部串行执行。使用完毕后调用 `mesh_avatar_destroy`。
+
+帧和图层描述符包含由库持有的只读指针，有效期到该句柄的下一次tick或销毁为止；仅修改设置不会改变缓存帧。
+纹理名称和未预乘Alpha的RGBA8像素在销毁句柄前保持有效。不要释放这些指针；如需跨tick保留数据，请自行复制。
+读取借用数据时，必须与其他线程上的tick或销毁操作同步，避免并发访问。
+检查每个 `MaStatus`，失败时读取 `mesh_avatar_last_error`；错误字符串在同一线程下一次API调用前有效。
+遇到被捕获的Rust panic时，应销毁并重新打开该句柄。生成的头文件也记录了指针、长度和所有权要求。
+
+普通库构建不需要头文件生成器。更新头文件时，将固定版本的开发工具安装到Git忽略的构建目录：
+
+```sh
+cargo install cbindgen --version 0.29.4 --locked --root native/target/header-tools
+bash native/conformance/ffi-header.sh
+bash native/conformance/ffi-header.sh --check
+```
+
+CI使用相同版本检查头文件差异，并构建库、编译和运行C示例。C ABI仍为实验性功能，尚无GPU渲染入口；请用宿主渲染器绘制帧数据。
+
 ## 检查与画面对比
 
 只有在与 JavaScript 运行时对比时，才需要 Node.js 22.17 或更高版本以及仓库的 npm 依赖：

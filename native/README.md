@@ -147,6 +147,47 @@ Unspecified pose parameters use their defaults. `--seconds` advances the avatar
 at 60 simulation steps per second before rendering. `--help` lists options for
 viewport padding, fit, expressions and multisampling.
 
+## Use the C ABI
+
+```sh
+cargo build --release --manifest-path native/Cargo.toml -p mesh-avatar-ffi
+make -C native/examples/c run
+```
+
+The CPU-only library produces `libmesh_avatar_ffi.a` and a platform shared library
+(`libmesh_avatar_ffi.dylib` on macOS) in `native/target/release/`. Include
+[`mesh_avatar.h`](include/mesh_avatar.h) in your host. The C example opens the
+sample, applies a pose, ticks it, reads geometry/uniforms/textures and checks
+invalid-input behavior. It does not create a window or capture audio.
+
+Open a built folder/archive with `mesh_avatar_open_path`, or an in-memory archive
+with `mesh_avatar_open_bytes`. Inputs are copied or consumed during the call;
+the archive buffer can be released after opening. Handles are opaque `uint64_t`
+tokens, with zero invalid. They can move between threads; calls on the same
+handle are serialized internally. Always call `mesh_avatar_destroy` when finished.
+
+Frame and layer descriptors contain borrowed, read-only pointers. They remain
+valid until the next tick or destroy on that handle; setters leave the cached
+frame intact. Texture names and straight RGBA8 pixels remain valid until destroy.
+Do not free these pointers. Copy data if it must outlive a tick, and synchronize
+borrowed reads against tick/destroy on other threads. Check every `MaStatus`;
+`mesh_avatar_last_error` returns a thread-local message until the next API call
+on that thread. A contained Rust panic requires destroying and reopening that
+handle. The generated header documents pointer/count and ownership requirements.
+
+Normal library builds do not need a header generator. To regenerate the checked-in
+header, install the pinned development tool into the ignored build directory:
+
+```sh
+cargo install cbindgen --version 0.29.4 --locked --root native/target/header-tools
+bash native/conformance/ffi-header.sh
+bash native/conformance/ffi-header.sh --check
+```
+
+CI installs that version, verifies the header has no drift, builds both library
+types, and builds/runs the C example. The C ABI is experimental and has no GPU
+rendering entry point yet; use the frame data with a host renderer.
+
 ## Checks and visual comparison
 
 Node.js 22.17 or newer and the repository's npm dependencies are needed only for

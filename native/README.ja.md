@@ -114,6 +114,37 @@ cargo run --release --manifest-path native/Cargo.toml -p mesh-avatar-wgpu \
 指定しなかったポーズのパラメータは既定値になります。`--seconds` を指定すると、書き出す前に毎秒 60 ステップでアバターの時間を進めます。
 `--help` で、表示余白、fit、表情、マルチサンプリングのオプションを確認できます。
 
+## C ABIを使う
+
+```sh
+cargo build --release --manifest-path native/Cargo.toml -p mesh-avatar-ffi
+make -C native/examples/c run
+```
+
+CPU版ライブラリの `libmesh_avatar_ffi.a` と共有ライブラリ（macOSでは `libmesh_avatar_ffi.dylib`）が `native/target/release/` に生成されます。
+ホスト側では [`mesh_avatar.h`](include/mesh_avatar.h) をインクルードします。Cのサンプルは、アバターにポーズを設定して時間を進め、頂点・uniform・テクスチャと不正な入力への応答を確認します。ウィンドウやマイクは起動しません。
+
+ビルド済みフォルダやアーカイブは `mesh_avatar_open_path`、メモリ上のアーカイブは `mesh_avatar_open_bytes` で開きます。
+入力は呼び出し中に読み取り・コピーするため、開いた後はアーカイブのバッファを解放できます。ハンドルには `uint64_t` の識別子を使い、0は無効です。
+別のスレッドへ渡して使えます。同じハンドルへのAPI呼び出しは内部で直列化します。使い終わったら `mesh_avatar_destroy` を呼んでください。
+
+フレームとレイヤーには、ライブラリが所有する読み取り専用ポインターが入っています。有効期間は、そのハンドルの次のtickか破棄までです。設定だけを変更してもキャッシュしたフレームは変わりません。
+テクスチャ名とストレートアルファのRGBA8画像は、ハンドルの破棄まで有効です。これらのポインターは解放しないでください。
+tick後も必要なデータはコピーし、別スレッドからのtick・破棄とデータの読み取りが重ならないよう同期してください。
+各関数の `MaStatus` を確認し、失敗時は `mesh_avatar_last_error` を読みます。エラー文字列は同じスレッドで次のAPIを呼ぶまで有効です。
+Rustのpanicを検知したハンドルは、破棄して開き直します。ポインターと要素数、所有権の条件は生成ヘッダーにも記載しています。
+
+通常のライブラリビルドにヘッダー生成ツールは不要です。ヘッダーを更新するときは、バージョンを固定した開発用ツールをGit管理外のビルド先へ入れます。
+
+```sh
+cargo install cbindgen --version 0.29.4 --locked --root native/target/header-tools
+bash native/conformance/ffi-header.sh
+bash native/conformance/ffi-header.sh --check
+```
+
+CIも同じバージョンでヘッダーの差分を確認し、ライブラリとCサンプルをビルド・実行します。
+C ABIは実験的な段階です。GPU描画用の関数はまだないため、フレームデータをホスト側のレンダラーで描画してください。
+
 ## チェックと見た目の比較
 
 Node.js 22.17 以降とリポジトリの npm 依存関係は、JavaScript 版との比較にだけ必要です。

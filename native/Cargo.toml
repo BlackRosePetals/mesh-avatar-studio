@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/mesh-avatar-core", "crates/mesh-avatar-wgpu", "apps/mesh-avatar-desktop"]
+members = ["crates/mesh-avatar-core", "crates/mesh-avatar-wgpu", "crates/mesh-avatar-ffi", "apps/mesh-avatar-desktop"]
 resolver = "2"
 
 [workspace.package]

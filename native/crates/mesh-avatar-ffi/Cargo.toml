@@ -1,0 +1,16 @@
+[package]
+name = "mesh-avatar-ffi"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[lib]
+crate-type = ["cdylib", "staticlib", "rlib"]
+
+[dependencies]
+mesh-avatar-core.workspace = true
+
+[dev-dependencies]
+zip.workspace = true
+serde_json.workspace = true

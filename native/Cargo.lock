@@ -1063,6 +1063,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "mesh-avatar-ffi"
+version = "0.1.0"
+dependencies = [
+ "mesh-avatar-core",
+ "serde_json",
+ "zip",
+]
+
+[[package]]
 name = "mesh-avatar-wgpu"
 version = "0.1.0"
 dependencies = [
