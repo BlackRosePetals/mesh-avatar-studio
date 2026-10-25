@@ -4,6 +4,7 @@ import { readFile, mkdir, writeFile } from 'node:fs/promises';
 import { registerHooks } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { PNG } from 'pngjs';
+import { dumpDeformation } from './deformation.mjs';
 
 // Match the runtime's bundler-style extensionless lighting imports in plain Node.
 const hooks = registerHooks({ resolve(specifier, context, next) {
@@ -25,14 +26,17 @@ const json = async path => JSON.parse(await readFile(new URL(path, sample), 'utf
 const rig = parseRig(await json('rig.json'));
 const metadata = await json('built/layers.json');
 const sprites = await json('built/sprites/sprites.json');
-const { buildGrid } = createRenderer(createRig(rig), rig);
+const engine = createRig(rig);
+const { buildGrid } = createRenderer(engine, rig);
 const plain = mesh => Object.fromEntries(Object.entries(mesh).map(([key, value]) =>
   [key, ArrayBuffer.isView(value) ? Array.from(value) : value]));
 const grids = [];
+const images = {};
 for (const [sprite, rectangles] of [[false, { base: [0, 0, rig.image.width, rig.image.height], ...metadata.layers }], [true, sprites.layers]]) {
   for (const [name, rect] of Object.entries(rectangles)) {
     const texture = `${sprite ? 'sprites/' : ''}${name}.png`;
     const image = PNG.sync.read(await readFile(new URL(`built/${texture}`, sample)));
+    images[texture] = image;
     if (image.width !== rect[2] || image.height !== rect[3]) throw new Error(`PNG dimensions do not match ${texture}`);
     const cell = sprite ? rig.mesh.spriteCell : name === 'base' ? rig.mesh.baseCell
       : name === 'hand' ? rig.mesh.handCell : name.startsWith('tassel') ? rig.mesh.tasselCell
@@ -58,3 +62,5 @@ const destination = new URL('../target/conformance/', import.meta.url);
 await mkdir(destination, { recursive: true });
 await writeFile(new URL('grids.json', destination), JSON.stringify({ version: 1, grids, cases }) + '\n');
 console.log(`Wrote ${grids.length} layer/sprite grids and ${cases.length} edge cases to ${fileURLToPath(new URL('grids.json', destination))}`);
+images['hairmask.png'] = PNG.sync.read(await readFile(new URL('built/hairmask.png', sample)));
+await dumpDeformation({ rig, engine, grids, images, sprites, buildGrid, destination });

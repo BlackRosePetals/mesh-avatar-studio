@@ -98,12 +98,66 @@ pub struct LayerMetadata {
     pub eyes: [EyeCurves; 2],
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct SpriteMetadata {
-    #[serde(default = "legacy_version")]
     pub version: u32,
     pub build: String,
     pub layers: BTreeMap<String, Rect>,
+    /// JSON insertion order, used for stable sprite cross-fade draw ordering.
+    #[serde(skip)]
+    pub layer_order: Vec<String>,
+}
+
+impl<'de> Deserialize<'de> for SpriteMetadata {
+    fn deserialize<D: serde::Deserializer<'de>>(
+        deserializer: D,
+    ) -> std::result::Result<Self, D::Error> {
+        struct OrderedLayers(Vec<(String, Rect)>);
+        impl<'de> Deserialize<'de> for OrderedLayers {
+            fn deserialize<D: serde::Deserializer<'de>>(
+                deserializer: D,
+            ) -> std::result::Result<Self, D::Error> {
+                struct Visitor;
+                impl<'de> serde::de::Visitor<'de> for Visitor {
+                    type Value = OrderedLayers;
+                    fn expecting(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                        f.write_str("a layer rectangle map")
+                    }
+                    fn visit_map<M: serde::de::MapAccess<'de>>(
+                        self,
+                        mut map: M,
+                    ) -> std::result::Result<Self::Value, M::Error> {
+                        let mut entries = Vec::new();
+                        while let Some(entry) = map.next_entry()? {
+                            entries.push(entry);
+                        }
+                        Ok(OrderedLayers(entries))
+                    }
+                }
+                deserializer.deserialize_map(Visitor)
+            }
+        }
+        #[derive(Deserialize)]
+        struct Metadata {
+            #[serde(default = "legacy_version")]
+            version: u32,
+            build: String,
+            layers: OrderedLayers,
+        }
+        let value = Metadata::deserialize(deserializer)?;
+        let layer_order = value
+            .layers
+            .0
+            .iter()
+            .map(|(name, _)| name.clone())
+            .collect();
+        Ok(Self {
+            version: value.version,
+            build: value.build,
+            layers: value.layers.0.into_iter().collect(),
+            layer_order,
+        })
+    }
 }
 
 #[derive(Debug, Clone)]
