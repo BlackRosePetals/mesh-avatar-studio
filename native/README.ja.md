@@ -2,21 +2,95 @@
 
 [English](README.md) · [简体中文](README.zh.md)
 
-> **実験的な機能です。** ネイティブ版のランタイムは開発中で、パッケージとしては公開していません。
+> **実験的な機能です。** ネイティブ版のランタイムは開発中で、クレートはcrates.ioに公開していません。
 > API、操作方法、ファイルの保存場所は予告なく変わることがあります。基準となる実装は `packages/runtime` の JavaScript 版です。
 
 Rust 版のランタイムは、JavaScript 版と同じ `.mavatar` ファイルとビルド済みプロジェクトフォルダを読み込みます。
-透明なデスクトップアバターと PNG レンダラーが入っています。デスクトップ版の主な対象は Metal を使う macOS です。
+透明なデスクトップアバター、PNGレンダラー、Rust/C向けの組み込みAPIが入っています。デスクトップ版の主な対象は Metal を使う macOS です。
 
 ## 必要なもの
 
 - Rust 1.88 以降と Cargo。
-- macOS では Xcode Command Line Tools と、Metal に対応した GPU。
+- macOSではXcode Command Line Tools。描画にはMetal対応GPUも必要です。
+- Cのサンプルには `cc` と `make`（macOSで確認済み）。CPUのデータAPIにGPUは不要です。
 - アバターのアーカイブ、または `rig.json`・`built/layers.json`・ビルド済み PNG を含むプロジェクト。
   イラスト単体ではアバターとして動かせません。
 
 以下のコマンドはリポジトリのルートで実行します。既定のアバターは `samples/miko-qipao` で、その画像がインストールされている必要があります。
 サンプルには[素材の利用規約](../samples/miko-qipao/MIKO_ASSET_TERMS.md)が適用されます。
+
+## アプリに組み込む
+
+### Rust のクレート
+
+組み込み先のアプリの `Cargo.toml` に追加します。このリポジトリのルートではありません。
+
+```toml
+[dependencies]
+mesh-avatar-core = { git = "https://github.com/shinshin86/mesh-avatar-studio.git", package = "mesh-avatar-core" }
+mesh-avatar-wgpu = { git = "https://github.com/shinshin86/mesh-avatar-studio.git", package = "mesh-avatar-wgpu" }
+```
+
+これらのクレートは crates.io には公開していません。Git依存はリポジトリの既定ブランチを参照します。
+ビルドを再現できるよう、アプリの `Cargo.lock` をコミットするか、両方に `rev` を指定して同じコミットに固定してください。リビジョン間でAPIが変わることがあります。
+
+`mesh-avatar-core` はCPU上でアバターを読み込み、操作を反映してアニメーションを進めます。自前のレンダラーがあれば `mesh-avatar-wgpu` は不要です。
+`Avatar::tick` が返す `Frame` は、頂点座標・UV・三角形のインデックス・テクスチャ名・アルファを持つ描画順のレイヤーと、フレーム全体の顔用uniformを所有します。`Avatar::textures` からはデコード済みのストレートアルファのRGBA8画像を取得できます。
+`mesh-avatar-wgpu::Renderer` はそのフレームをホストが用意したwgpuのテクスチャビューへ描画し、RGBAへの読み戻しにも対応します。
+Rustのフレームはデータを所有します。以下のポインターの有効期間はC ABIだけの条件です。
+
+### C ABI
+
+このチェックアウトから `mesh-avatar-ffi` をビルドすると、`native/target/release/` に `libmesh_avatar_ffi.a` と共有ライブラリ（macOSでは `libmesh_avatar_ffi.dylib`）ができます。
+[`mesh_avatar.h`](include/mesh_avatar.h) をインクルードしてください。通常ビルドの依存先はcoreだけなので、自前のメッシュレンダラーを持つホストにwgpuは不要です。
+
+`mesh_avatar_tick` はフレームをキャッシュします。`mesh_avatar_get_frame` で、描画順のレイヤー（頂点座標・UV・三角形のインデックスと要素数・アルファ・テクスチャID）と、フレーム全体の顔用uniformを取得できます。
+テクスチャAPIからはサイズとデコード済みのストレートアルファのRGBA8画像を取得します。ホスト側でテクスチャを転送してメッシュを描画してください。CPUのデータAPIはウィンドウや画像を描画しません。
+
+ビルド済みフォルダやアーカイブは `mesh_avatar_open_path`、メモリ上のアーカイブは `mesh_avatar_open_bytes` で開きます。
+入力は呼び出し中に読み取り・コピーするため、開いた後はアーカイブのバッファを解放できます。ハンドルには `uint64_t` の識別子を使い、0は無効です。
+別のスレッドへ渡して使えます。同じハンドルへのAPI呼び出しは内部で直列化します。使い終わったら `mesh_avatar_destroy` を呼んでください。
+
+フレームとレイヤーには、ライブラリが所有する読み取り専用ポインターが入っています。有効期間は、そのハンドルの次のtickか破棄までです。設定だけを変更してもキャッシュしたフレームは変わりません。
+テクスチャ名とストレートアルファのRGBA8画像は、ハンドルの破棄まで有効です。これらのポインターは解放しないでください。
+tick後も必要なデータはコピーし、別スレッドからのtick・破棄とデータの読み取りが重ならないよう同期してください。
+各関数の `MaStatus` を確認し、失敗時は `mesh_avatar_last_error` を読みます。エラー文字列は同じスレッドで次のAPIを呼ぶまで有効です。
+Rustのpanicを検知したハンドルは、破棄して開き直します。ポインターと要素数、所有権の条件は生成ヘッダーにも記載しています。
+
+#### 任意機能のヘッドレス描画
+
+自前のメッシュレンダラーがないホストでは、`render` を有効にしてオフスクリーンの描画結果をコピーできます。
+
+描画用には [`mesh_avatar_render.h`](include/mesh_avatar_render.h) を読み込みます。このヘッダーはCPU用ヘッダーを含むため、マクロの指定は不要です。
+描画関数は `render` を有効にしたライブラリでのみ利用できます。
+
+アバターのハンドルと `MaRenderOptions` でレンダラーを作成します。物理ピクセルの幅・高さ、MSAAのサンプル数（1または4）、contain/cover、余白を指定します。余白の推奨値は `mesh_avatar_get_info` で取得できます。
+描画は現在のキャッシュ済みフレームを読み取り、呼び出し側のバッファへRGBA8を上の行から隙間なくコピーします。アニメーションは進みません。バッファは `幅*高さ*4` バイト以上必要で、ストレート／プリマルチプライドのアルファを選べます。
+描画はGPUからの読み戻しが完了するまで待ちます。バッファを保持せず、借用中のフレームデータも無効にしません。リサイズ後もfit・余白・サンプル数は維持されますが、呼び出し側のバッファもサイズに合わせて確保してください。不正なサイズやバッファはエラーとなり、出力バッファは変更されません。
+
+レンダラーはスレッド間で移動でき、同じレンダラー・アバターへの呼び出しは直列に処理されます。アバターを所有しないため、レンダラーを先に破棄してください。アバター破棄後の描画は `MA_INVALID_HANDLE` を返します。封じ込められたpanicの影響を受けたオブジェクトは破棄して作り直してください。
+対応するGPUアダプターがない場合は `MA_GPU_UNAVAILABLE`、それ以外のGPUエラーは `MA_RENDER_ERROR` を返します。サンプルとCIはアダプターがない場合だけ描画をスキップします。
+
+### C のサンプル
+
+サンプルは `cc` と `make` を使って静的ライブラリにリンクし、`samples/miko-qipao` を開きます。
+CPU版と `render` 版は同じライブラリのパスに出力するため、各サンプルの直前に対応するビルドを実行してください。
+
+[データ取得のサンプル](examples/c/main.c)はポーズを設定して時間を進め、メッシュとテクスチャの統計、不正な入力への応答を確認します。
+
+```sh
+cargo build --release --manifest-path native/Cargo.toml -p mesh-avatar-ffi
+make -C native/examples/c run
+```
+
+[描画のサンプル](examples/c/render.c)はアルファの両形式、フレームのキャッシュが維持されること、リサイズを検証し、`native/target/ffi-render.ppm` に保存します。
+PPMはアルファを持たないため、ストレートRGBAを白背景に合成します。どちらのサンプルもウィンドウやマイクを起動しません。
+macOSでは、Makefileが描画に必要なMetalなどのフレームワークをリンクします。
+
+```sh
+cargo build --release --manifest-path native/Cargo.toml -p mesh-avatar-ffi --features render
+make -C native/examples/c run-render
+```
 
 ## デスクトップアプリ
 
@@ -107,34 +181,35 @@ macOSでは、システムのステータスバーにある単色のアバター
 
 ```sh
 cargo run --release --manifest-path native/Cargo.toml -p mesh-avatar-wgpu \
-  --bin mesh-avatar-render -- samples/miko-qipao --size 512x640 -o avatar.png
+  --bin mesh-avatar-render -- samples/miko-qipao --size 512x640 -o native/target/avatar.png
 ```
 
 `--pose` には `{"angleX":20,"mouthOpen":0.8}` のような JSON オブジェクトを渡します。
 指定しなかったポーズのパラメータは既定値になります。`--seconds` を指定すると、書き出す前に毎秒 60 ステップでアバターの時間を進めます。
 `--help` で、表示余白、fit、表情、マルチサンプリングのオプションを確認できます。
 
-## C ABIを使う
+## 開発時の確認
+
+ここでもシェルコマンドはリポジトリのルートで実行します。JavaScript版との比較にはNode.js 22.17以降とnpmの依存関係が必要です。
+まだインストールしていなければ `npm ci` を実行してください。
 
 ```sh
-cargo build --release --manifest-path native/Cargo.toml -p mesh-avatar-ffi
-make -C native/examples/c run
+node --experimental-strip-types native/conformance/dump.mjs
+cargo test --manifest-path native/Cargo.toml --all-features
+cargo clippy --manifest-path native/Cargo.toml --all-targets --all-features -- -D warnings
+cargo fmt --manifest-path native/Cargo.toml --all --check
 ```
 
-CPU版ライブラリの `libmesh_avatar_ffi.a` と共有ライブラリ（macOSでは `libmesh_avatar_ffi.dylib`）が `native/target/release/` に生成されます。
-ホスト側では [`mesh_avatar.h`](include/mesh_avatar.h) をインクルードします。Cのサンプルは、アバターにポーズを設定して時間を進め、頂点・uniform・テクスチャと不正な入力への応答を確認します。ウィンドウやマイクは起動しません。
+dumpは、埋め込んだモーションデータの一致を確認し、数値の比較用データをGit管理外の `native/target/conformance/` に出力します。
+テストの前に生成してください。データがなければ比較テストはスキップした旨を表示します。対応GPUがない環境ではGPU読み戻しのテストもスキップします。
+coreはWASM向けにもビルドできます。JavaScriptバインディングは含みません。
 
-ビルド済みフォルダやアーカイブは `mesh_avatar_open_path`、メモリ上のアーカイブは `mesh_avatar_open_bytes` で開きます。
-入力は呼び出し中に読み取り・コピーするため、開いた後はアーカイブのバッファを解放できます。ハンドルには `uint64_t` の識別子を使い、0は無効です。
-別のスレッドへ渡して使えます。同じハンドルへのAPI呼び出しは内部で直列化します。使い終わったら `mesh_avatar_destroy` を呼んでください。
+```sh
+rustup target add wasm32-unknown-unknown
+cargo check --manifest-path native/Cargo.toml -p mesh-avatar-core --target wasm32-unknown-unknown
+```
 
-フレームとレイヤーには、ライブラリが所有する読み取り専用ポインターが入っています。有効期間は、そのハンドルの次のtickか破棄までです。設定だけを変更してもキャッシュしたフレームは変わりません。
-テクスチャ名とストレートアルファのRGBA8画像は、ハンドルの破棄まで有効です。これらのポインターは解放しないでください。
-tick後も必要なデータはコピーし、別スレッドからのtick・破棄とデータの読み取りが重ならないよう同期してください。
-各関数の `MaStatus` を確認し、失敗時は `mesh_avatar_last_error` を読みます。エラー文字列は同じスレッドで次のAPIを呼ぶまで有効です。
-Rustのpanicを検知したハンドルは、破棄して開き直します。ポインターと要素数、所有権の条件は生成ヘッダーにも記載しています。
-
-通常のライブラリビルドにヘッダー生成ツールは不要です。ヘッダーを更新するときは、バージョンを固定した開発用ツールをGit管理外のビルド先へ入れます。
+通常のライブラリビルドにcbindgenは不要です。ヘッダーを更新するときは、バージョンを固定したツールをGit管理外のビルド先へ入れ、両ヘッダーを再生成して差分を確認します。
 
 ```sh
 cargo install cbindgen --version 0.29.4 --locked --root native/target/header-tools
@@ -142,44 +217,21 @@ bash native/conformance/ffi-header.sh
 bash native/conformance/ffi-header.sh --check
 ```
 
-CIも同じバージョンで両ヘッダーの差分を確認し、ライブラリとCサンプルをビルド・実行します。C ABIは実験的な段階です。
+CIではWASM、フォーマット・lint・テスト、両ヘッダー、Cの両サンプルを確認します。描画サンプルは対応するGPUアダプターがない場合だけスキップします。
 
-### 任意機能のヘッドレス描画
+### 画素を比較する
 
-```sh
-cargo build --release --manifest-path native/Cargo.toml -p mesh-avatar-ffi --features render
-make -C native/examples/c run-render
-```
-
-描画用には [`mesh_avatar_render.h`](include/mesh_avatar_render.h) を読み込みます。このヘッダーはCPU用ヘッダーを含むため、マクロの指定は不要です。
-描画関数は `render` を有効にしたライブラリでのみ利用できます。通常ビルドの依存先はcoreだけです。macOSでは、C用MakefileがMetalなどの必要なフレームワークをリンクします。
-
-アバターのハンドルと `MaRenderOptions` でレンダラーを作成します。物理ピクセルの幅・高さ、MSAAのサンプル数（1または4）、contain/cover、余白を指定します。余白の推奨値は `mesh_avatar_get_info` で取得できます。
-描画は現在のキャッシュ済みフレームを読み取り、呼び出し側のバッファへRGBA8を上の行から隙間なくコピーします。アニメーションは進みません。バッファは `幅*高さ*4` バイト以上必要で、ストレート／プリマルチプライドのアルファを選べます。
-描画はGPUからの読み戻しが完了するまで待ちます。バッファを保持せず、借用中のフレームデータも無効にしません。リサイズ後もfit・余白・サンプル数は維持されますが、呼び出し側のバッファもサイズに合わせて確保してください。不正なサイズやバッファはエラーとなり、出力バッファは変更されません。
-
-レンダラーはスレッド間で移動でき、同じレンダラー・アバターへの呼び出しは直列に処理されます。アバターを所有しないため、レンダラーを先に破棄してください。アバター破棄後の描画は `MA_INVALID_HANDLE` を返します。封じ込められたpanicの影響を受けたオブジェクトは破棄して作り直してください。
-対応するGPUアダプターがない場合は `MA_GPU_UNAVAILABLE`、それ以外のGPUエラーは `MA_RENDER_ERROR` を返します。サンプルとCIはアダプターがない場合だけ描画をスキップします。
-
-サンプルはアルファの両形式とリサイズを検証し、`native/target/ffi-render.ppm` に保存します。PPMはアルファを持たないため、ストレートRGBAを白背景に合成します。ウィンドウは開きません。
-CIではcoreの `wasm32-unknown-unknown` 向けビルドも確認します。JavaScriptバインディングは含みません。
-
-## チェックと見た目の比較
-
-Node.js 22.17 以降とリポジトリの npm 依存関係は、JavaScript 版との比較にだけ必要です。
+任意の比較コマンドです。ヘッドレスChromiumとオフスクリーンレンダラーを起動します。
+npmの依存関係、PlaywrightのChromium、対応するGPUが必要です。デバッグ版レンダラーはスクリプト内でビルドします。
 
 ```sh
-node --experimental-strip-types native/conformance/dump.mjs
-cargo test --manifest-path native/Cargo.toml
-cargo clippy --manifest-path native/Cargo.toml --all-targets -- -D warnings
-cargo fmt --manifest-path native/Cargo.toml --all --check
+npx playwright install chromium
 node native/conformance/compare-pixels.mjs
 ```
 
-dump は、Rust 側に埋め込んだモーションデータが JavaScript のソースと一致しているかも確認します。
-意図して更新するときは `node --experimental-strip-types native/conformance/sync-motion-data.mjs` を実行します。
-数値の比較データ、PNG、レポートは git の管理外の `native/target/` に出力されます。生成データがない場合、比較テストはスキップした旨を表示します。
-画素の比較には Playwright がインストールした Chromium を使います。macOS では `--metal` で Metal バックエンドを選べ、`--dpr=2` で HiDPI 時に同じ物理サイズで比較します。
+PNGとレポートはGit管理外の `native/target/pixel-comparison*/` に保存します。
+macOSでは `--metal` でChromiumのMetalバックエンドを選べ、`--dpr=2` でHiDPIの物理サイズを揃えて比較できます。
+埋め込むモーションの定義を意図して更新するときは、`node --experimental-strip-types native/conformance/sync-motion-data.mjs` を実行してください。
 
 ## 制限事項
 

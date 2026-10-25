@@ -2,21 +2,90 @@
 
 [English](README.md) · [日本語](README.ja.md)
 
-> **实验性功能。** 原生运行时仍在开发中，尚未作为软件包发布。
+> **实验性功能。** 原生运行时仍在开发中，crate尚未发布到crates.io。
 > API、操作方式和文件保存位置可能会在不另行通知的情况下变更。参考实现仍是 `packages/runtime` 中的 JavaScript 运行时。
 
 Rust 运行时可以加载与 JavaScript 运行时相同的 `.mavatar` 文件和已构建的项目文件夹。
-其中包含一个透明的桌面虚拟形象程序和一个 PNG 渲染器。桌面端的主要目标平台是使用 Metal 的 macOS。
+其中包含透明的桌面虚拟形象程序、PNG渲染器和Rust/C嵌入API。桌面端的主要目标平台是使用 Metal 的 macOS。
 
 ## 准备工作
 
 - Rust 1.88 或更高版本，以及 Cargo。
-- 在 macOS 上需要 Xcode Command Line Tools 和支持 Metal 的 GPU。
+- macOS需要Xcode Command Line Tools；渲染还需要支持Metal的GPU。
+- C示例需要 `cc` 和 `make`（已在macOS验证）。CPU数据API不需要GPU。
 - 一个虚拟形象归档文件，或包含 `rig.json`、`built/layers.json` 和已构建 PNG 资源的项目。
   仅有插画本身无法作为虚拟形象运行。
 
 以下命令均在仓库根目录执行。默认虚拟形象为 `samples/miko-qipao`，需要先安装其图片。
 该示例适用[素材使用条款](../samples/miko-qipao/MIKO_ASSET_TERMS.md)。
+
+## 嵌入应用
+
+### Rust crate
+
+将以下依赖添加到宿主应用的 `Cargo.toml`，而不是本仓库的根目录：
+
+```toml
+[dependencies]
+mesh-avatar-core = { git = "https://github.com/shinshin86/mesh-avatar-studio.git", package = "mesh-avatar-core" }
+mesh-avatar-wgpu = { git = "https://github.com/shinshin86/mesh-avatar-studio.git", package = "mesh-avatar-wgpu" }
+```
+
+这些crate尚未发布到crates.io。Git依赖使用仓库的默认分支。为使构建可重现，请提交应用的 `Cargo.lock`，或在两个依赖中用 `rev` 固定到同一提交。不同修订之间的API可能发生变化。
+
+`mesh-avatar-core` 在CPU上加载虚拟形象、应用控制并推进动画；已有渲染器时可省略 `mesh-avatar-wgpu`。
+`Avatar::tick` 返回拥有其数据的 `Frame`，包含按绘制顺序排列的图层（顶点坐标、UV、三角形索引、纹理名称和Alpha）以及整帧的面部uniform。`Avatar::textures` 提供解码后的非预乘Alpha RGBA8纹理。
+`mesh-avatar-wgpu::Renderer` 将帧绘制到宿主提供的wgpu纹理视图，也支持RGBA读回。Rust帧拥有其数据；下述指针有效期仅适用于C ABI。
+
+### C ABI
+
+从此仓库检出构建 `mesh-avatar-ffi`，会在 `native/target/release/` 生成 `libmesh_avatar_ffi.a` 和平台共享库（macOS上为 `libmesh_avatar_ffi.dylib`）。
+包含 [`mesh_avatar.h`](include/mesh_avatar.h)。默认构建仅依赖core，已有网格渲染器的宿主无需引入wgpu。
+
+每次 `mesh_avatar_tick` 都会缓存一帧。`mesh_avatar_get_frame` 提供按绘制顺序排列的图层（顶点坐标、UV、三角形索引及数量、Alpha和纹理ID）以及整帧的面部uniform。
+纹理API提供尺寸与解码后的非预乘Alpha RGBA8像素。宿主负责上传纹理和绘制网格；CPU数据API本身不绘制窗口或图像。
+
+使用 `mesh_avatar_open_path` 打开已构建的文件夹或归档，使用 `mesh_avatar_open_bytes` 打开内存中的归档。
+输入在调用期间读取或复制，打开成功后即可释放归档缓冲区。句柄是不透明的 `uint64_t` 标识符，0无效。
+句柄可在线程间传递；同一句柄的API调用在内部串行执行。使用完毕后调用 `mesh_avatar_destroy`。
+
+帧和图层描述符包含由库持有的只读指针，有效期到该句柄的下一次tick或销毁为止；仅修改设置不会改变缓存帧。
+纹理名称和非预乘Alpha的RGBA8像素在销毁句柄前保持有效。不要释放这些指针；如需跨tick保留数据，请自行复制。
+读取借用数据时，必须与其他线程上的tick或销毁操作同步，避免并发访问。
+检查每个 `MaStatus`，失败时读取 `mesh_avatar_last_error`；错误字符串在同一线程下一次API调用前有效。
+遇到被捕获的Rust panic时，应销毁并重新打开该句柄。生成的头文件也记录了指针、长度和所有权要求。
+
+#### 可选的无窗口渲染
+
+没有自有网格渲染器的宿主可启用 `render`，直接复制离屏渲染的像素。
+
+扩展使用 [`mesh_avatar_render.h`](include/mesh_avatar_render.h)，它包含CPU头文件，无需定义宏。只有用 `render` 功能构建的库才导出这些函数。
+
+用虚拟形象句柄和 `MaRenderOptions` 创建渲染器，指定物理像素宽高、MSAA采样数（1或4）、contain/cover以及显式留白。可从 `mesh_avatar_get_info` 取得建议的留白值。
+渲染读取当前缓存帧，不推进动画，将紧密排列、从顶行开始的RGBA8复制到调用方提供的缓冲区。缓冲区至少需要 `宽*高*4` 字节，可选择非预乘或预乘Alpha。
+同步调用会等待GPU读回完成，不保留调用方缓冲区，也不使借用的帧指针失效。调整大小会保留fit、留白和采样数；调用方也应按新尺寸分配缓冲区。无效尺寸或缓冲区返回错误，不修改输出缓冲区。
+
+渲染器可以跨线程使用，同一渲染器及虚拟形象上的调用会被串行化。渲染器只引用虚拟形象，不拥有它；请先销毁渲染器，再销毁虚拟形象。虚拟形象销毁后渲染返回 `MA_INVALID_HANDLE`。捕获panic后，应销毁并重建受影响的对象。
+没有兼容GPU适配器时返回 `MA_GPU_UNAVAILABLE`；其他GPU错误返回 `MA_RENDER_ERROR`。示例和CI只在没有适配器时跳过渲染。
+
+### C 示例
+
+示例使用 `cc` 和 `make` 链接静态库，并打开 `samples/miko-qipao`。CPU与 `render` 构建写入相同的库路径，请在运行各示例前执行对应的构建。
+
+[数据示例](examples/c/main.c)会设置姿势、推进动画、打印网格及纹理统计，并检查无效输入的返回值：
+
+```sh
+cargo build --release --manifest-path native/Cargo.toml -p mesh-avatar-ffi
+make -C native/examples/c run
+```
+
+[渲染示例](examples/c/render.c)检查两种Alpha格式、帧缓存保持不变以及尺寸调整，然后写入 `native/target/ffi-render.ppm`。
+PPM不支持Alpha，因此会将非预乘RGBA合成到白色背景上。两个示例都不会打开窗口或启用麦克风。macOS的Makefile会链接渲染所需的Metal等系统框架：
+
+```sh
+cargo build --release --manifest-path native/Cargo.toml -p mesh-avatar-ffi --features render
+make -C native/examples/c run-render
+```
 
 ## 桌面程序
 
@@ -107,34 +176,34 @@ native/target/release/mesh-avatar-desktop /path/to/project
 
 ```sh
 cargo run --release --manifest-path native/Cargo.toml -p mesh-avatar-wgpu \
-  --bin mesh-avatar-render -- samples/miko-qipao --size 512x640 -o avatar.png
+  --bin mesh-avatar-render -- samples/miko-qipao --size 512x640 -o native/target/avatar.png
 ```
 
 通过 `--pose` 传入类似 `{"angleX":20,"mouthOpen":0.8}` 的 JSON 对象。
 未指定的姿势参数使用默认值。`--seconds` 会在渲染前以每秒 60 步推进虚拟形象的时间。
 `--help` 会列出视图边距、fit、表情和多重采样等选项。
 
-## 使用C ABI
+## 开发检查
+
+这里的shell命令同样在仓库根目录运行。与JavaScript运行时对比需要Node.js 22.17或更高版本及npm依赖。尚未安装时，请先执行 `npm ci`。
 
 ```sh
-cargo build --release --manifest-path native/Cargo.toml -p mesh-avatar-ffi
-make -C native/examples/c run
+node --experimental-strip-types native/conformance/dump.mjs
+cargo test --manifest-path native/Cargo.toml --all-features
+cargo clippy --manifest-path native/Cargo.toml --all-targets --all-features -- -D warnings
+cargo fmt --manifest-path native/Cargo.toml --all --check
 ```
 
-CPU库会在 `native/target/release/` 中生成 `libmesh_avatar_ffi.a` 和平台共享库（macOS上为 `libmesh_avatar_ffi.dylib`）。
-宿主程序需包含 [`mesh_avatar.h`](include/mesh_avatar.h)。C示例会加载示例虚拟形象、设置姿势、推进动画，读取几何数据、uniform和纹理，并检查无效输入的返回值，不会创建窗口或启用麦克风。
+dump首先检查嵌入的动作数据是否一致，然后将数值参考数据写入Git忽略的 `native/target/conformance/`。
+请在测试前生成数据；缺少数据时，对比测试会输出跳过提示。没有兼容GPU时，GPU读回测试也会跳过。
+core也可编译为WASM，但不包含JavaScript绑定：
 
-使用 `mesh_avatar_open_path` 打开已构建的文件夹或归档，使用 `mesh_avatar_open_bytes` 打开内存中的归档。
-输入在调用期间读取或复制，打开成功后即可释放归档缓冲区。句柄是不透明的 `uint64_t` 标识符，0无效。
-句柄可在线程间传递；同一句柄的API调用在内部串行执行。使用完毕后调用 `mesh_avatar_destroy`。
+```sh
+rustup target add wasm32-unknown-unknown
+cargo check --manifest-path native/Cargo.toml -p mesh-avatar-core --target wasm32-unknown-unknown
+```
 
-帧和图层描述符包含由库持有的只读指针，有效期到该句柄的下一次tick或销毁为止；仅修改设置不会改变缓存帧。
-纹理名称和未预乘Alpha的RGBA8像素在销毁句柄前保持有效。不要释放这些指针；如需跨tick保留数据，请自行复制。
-读取借用数据时，必须与其他线程上的tick或销毁操作同步，避免并发访问。
-检查每个 `MaStatus`，失败时读取 `mesh_avatar_last_error`；错误字符串在同一线程下一次API调用前有效。
-遇到被捕获的Rust panic时，应销毁并重新打开该句柄。生成的头文件也记录了指针、长度和所有权要求。
-
-普通库构建不需要头文件生成器。更新头文件时，将固定版本的开发工具安装到Git忽略的构建目录：
+普通库构建不需要cbindgen。维护头文件时，将固定版本工具安装到Git忽略的构建目录，重新生成两个头文件，再检查差异：
 
 ```sh
 cargo install cbindgen --version 0.29.4 --locked --root native/target/header-tools
@@ -142,43 +211,19 @@ bash native/conformance/ffi-header.sh
 bash native/conformance/ffi-header.sh --check
 ```
 
-CI使用相同版本检查两个头文件的差异，并构建库、编译和运行C示例。C ABI仍为实验性功能。
+CI检查WASM、格式/lint/测试、两个生成头文件和两个C示例。渲染示例仅在没有兼容GPU适配器时跳过。
 
-### 可选的无窗口渲染
+### 像素对比
 
-```sh
-cargo build --release --manifest-path native/Cargo.toml -p mesh-avatar-ffi --features render
-make -C native/examples/c run-render
-```
-
-扩展使用 [`mesh_avatar_render.h`](include/mesh_avatar_render.h)，它包含CPU头文件，无需定义宏。只有用 `render` 功能构建的库才导出这些函数。默认构建仅依赖core。macOS的C Makefile会链接Metal等所需的系统框架。
-
-用头像句柄和 `MaRenderOptions` 创建渲染器，指定物理像素宽高、MSAA采样数（1或4）、contain/cover以及显式留白。可从 `mesh_avatar_get_info` 取得建议的留白值。
-渲染读取当前缓存帧，不推进动画，将紧密排列、从顶行开始的RGBA8复制到调用方提供的缓冲区。缓冲区至少需要 `宽*高*4` 字节，可选择非预乘或预乘Alpha。
-同步调用会等待GPU读回完成，不保留调用方缓冲区，也不使借用的帧指针失效。调整大小会保留fit、留白和采样数；调用方也应按新尺寸分配缓冲区。无效尺寸或缓冲区返回错误，不修改输出缓冲区。
-
-渲染器可以跨线程使用，同一渲染器及头像上的调用会被串行化。渲染器只引用头像，不拥有它；请先销毁渲染器，再销毁头像。头像销毁后渲染返回 `MA_INVALID_HANDLE`。捕获panic后，应销毁并重建受影响的对象。
-没有兼容GPU适配器时返回 `MA_GPU_UNAVAILABLE`；其他GPU错误返回 `MA_RENDER_ERROR`。示例和CI只在没有适配器时跳过渲染。
-
-示例验证两种Alpha格式和尺寸调整，并写入 `native/target/ffi-render.ppm`。PPM不支持Alpha，因此会将非预乘RGBA合成到白色背景上。不会打开窗口。
-CI还检查core的 `wasm32-unknown-unknown` 构建，不包含JavaScript绑定。
-
-## 检查与画面对比
-
-只有在与 JavaScript 运行时对比时，才需要 Node.js 22.17 或更高版本以及仓库的 npm 依赖：
+此可选命令会启动无窗口Chromium和离屏渲染器。需要npm依赖、Playwright的Chromium及兼容GPU；脚本会自行构建debug渲染器：
 
 ```sh
-node --experimental-strip-types native/conformance/dump.mjs
-cargo test --manifest-path native/Cargo.toml
-cargo clippy --manifest-path native/Cargo.toml --all-targets -- -D warnings
-cargo fmt --manifest-path native/Cargo.toml --all --check
+npx playwright install chromium
 node native/conformance/compare-pixels.mjs
 ```
 
-dump 会检查嵌入的动作数据是否与 JavaScript 源码一致。
-如需有意更新，请运行 `node --experimental-strip-types native/conformance/sync-motion-data.mjs`。
-数值对比数据、PNG 和报告会输出到被 git 忽略的 `native/target/`。缺少生成数据时，对比测试会输出跳过提示。
-像素对比使用 Playwright 安装的 Chromium；在 macOS 上，`--metal` 选择其 Metal 后端，`--dpr=2` 在 HiDPI 下以相同物理尺寸进行对比。
+PNG及报告保存在Git忽略的 `native/target/pixel-comparison*/`。macOS上可用 `--metal` 选择Chromium的Metal后端，用 `--dpr=2` 在HiDPI下按相同物理尺寸比较。
+如需有意更新嵌入的动作定义，请执行 `node --experimental-strip-types native/conformance/sync-motion-data.mjs`。
 
 ## 限制
 
