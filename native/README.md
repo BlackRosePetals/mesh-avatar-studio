@@ -1,5 +1,7 @@
 # Native mesh avatars
 
+[日本語](README.ja.md) · [简体中文](README.zh.md)
+
 The Rust runtime loads the same `.mavatar` files and built project folders as the
 JavaScript runtime. It includes a transparent desktop avatar and a PNG renderer.
 The primary desktop target is macOS with Metal.
