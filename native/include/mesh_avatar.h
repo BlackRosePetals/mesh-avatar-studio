@@ -251,7 +251,7 @@ MaStatus mesh_avatar_set_expression(MaHandle handle, const char *name);
 MaStatus mesh_avatar_set_emotion(MaHandle handle, const char *tag, uint8_t play_motion);
 
 /**
- * Play a built-in motion by its ID, e.g. nod, no, sway or greeting.
+ * Play a built-in motion by its ID, e.g. nod, no, sway or greet.
  * # Safety
  * id must be a readable UTF-8 NUL-terminated string.
  */

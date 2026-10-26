@@ -92,6 +92,17 @@ cargo build --release --manifest-path native/Cargo.toml -p mesh-avatar-ffi --fea
 make -C native/examples/c run-render
 ```
 
+[ターミナルのサンプル](examples/c/terminal.c)は毎フレーム描画し、RGBAを色付きの半角ブロック文字としてターミナルに表示します。
+ターミナルだけで動き、モーションとかなの口形を短く繰り返します。ターミナルのサイズを変えると描き直し、Ctrl+C で終了します。
+iTerm2、WezTerm、Ghosttyなど24bitカラーに対応したターミナルを使ってください。フォントを小さくするほど細かく表示されます。
+ターミナルマルチプレクサの中では、サイズの変更や色が正しく伝わらないことがあります。
+アバターのパスの後にフレーム数を指定すると、最後のフレームだけを出力して終了します。
+
+```sh
+make -C native/examples/c run-terminal
+native/target/ffi-terminal-example samples/miko-qipao 90 > native/target/frame.txt
+```
+
 ## デスクトップアプリ
 
 ```sh

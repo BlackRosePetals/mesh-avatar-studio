@@ -292,7 +292,7 @@ pub unsafe extern "C" fn mesh_avatar_set_emotion(
         })
     })
 }
-/// Play a built-in motion by its ID, e.g. nod, no, sway or greeting.
+/// Play a built-in motion by its ID, e.g. nod, no, sway or greet.
 /// # Safety
 /// id must be a readable UTF-8 NUL-terminated string.
 #[no_mangle]
