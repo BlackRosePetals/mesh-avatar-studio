@@ -87,6 +87,16 @@ cargo build --release --manifest-path native/Cargo.toml -p mesh-avatar-ffi --fea
 make -C native/examples/c run-render
 ```
 
+[终端示例](examples/c/terminal.c)每帧渲染一次，并将RGBA以彩色半格方块字符显示在终端中，因此只需要一个终端即可运行。
+它会循环播放简短的动作和假名口型，跟随终端尺寸变化重新绘制，按Ctrl+C退出。
+请使用支持24位色的终端，例如iTerm2、WezTerm或Ghostty；字体越小，画面越精细。在终端复用器中，尺寸变化或颜色可能无法正确传递。
+在头像路径后指定帧数时，只输出最后一帧后退出：
+
+```sh
+make -C native/examples/c run-terminal
+native/target/ffi-terminal-example samples/miko-qipao 90 > native/target/frame.txt
+```
+
 ## 桌面程序
 
 ```sh

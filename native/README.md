@@ -123,6 +123,19 @@ cargo build --release --manifest-path native/Cargo.toml -p mesh-avatar-ffi --fea
 make -C native/examples/c run-render
 ```
 
+The [terminal example](examples/c/terminal.c) renders the avatar every frame and
+draws the RGBA buffer as colored half-block characters, so a terminal is all it
+needs. It plays a short loop of motions and kana mouth shapes, follows terminal
+resizes and exits with Ctrl+C. Use a 24-bit color terminal such as iTerm2, WezTerm
+or Ghostty; a smaller font gives a finer image. Terminal multiplexers may not pass
+resizes or colors through reliably. With a frame count after the avatar path, it
+prints only the last frame and exits:
+
+```sh
+make -C native/examples/c run-terminal
+native/target/ffi-terminal-example samples/miko-qipao 90 > native/target/frame.txt
+```
+
 ## Desktop app
 
 ```sh
