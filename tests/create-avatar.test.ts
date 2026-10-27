@@ -27,7 +27,7 @@ function harness({ files = [] as string[], statuses = {} as Record<string, numbe
   const save = (path: string, data: string) => { saved[path] = data; };
   const ask = async (question: string) => { questions.push(question); return answer; };
   const readJson = () => ({ layers: Object.fromEntries(sprites.map(sprite => [sprite, [0, 0, 1, 1]])) });
-  const deps = { run, read, readJson, save, randomSeed: () => 4821, today: () => new Date('2026-10-27T12:00:00Z'), ask, interactive, exists: (path: string) => existing.has(path), environment, log: (m: string) => logs.push(m), error: (m: string) => errors.push(m), cwd: '/work' };
+  const deps = { run, read, readJson, save, randomSeed: () => 4821, today: () => new Date(2026, 9, 27, 7, 30), ask, interactive, exists: (path: string) => existing.has(path), environment, log: (m: string) => logs.push(m), error: (m: string) => errors.push(m), cwd: '/work' };
   return { calls, logs, errors, questions, saved, deps };
 }
 

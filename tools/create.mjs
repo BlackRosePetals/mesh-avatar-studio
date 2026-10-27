@@ -268,7 +268,7 @@ export async function create(argv, deps = {}) {
   let image = options.image && resolve(cwd, options.image);
   if (image && !exists(image)) { error(t.noImage(options.image)); return 1; }
   const taken = value => exists(join(root, 'projects', value));
-  const stamp = today().toISOString().slice(0, 10).replaceAll('-', '');
+  const day = today(), stamp = `${day.getFullYear()}${String(day.getMonth() + 1).padStart(2, '0')}${String(day.getDate()).padStart(2, '0')}`;
   const name = options.name ?? (options.random ? projectName(`random-${stamp}-${seed}`, taken) : projectName(options.image, taken));
   if (!validName(name)) { error(t.badName(name)); return 1; }
   if (exists(join(root, 'projects', name))) { error(t.exists(name)); return 1; }
