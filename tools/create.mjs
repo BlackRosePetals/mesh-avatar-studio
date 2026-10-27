@@ -11,16 +11,20 @@ const root = fileURLToPath(new URL('..', import.meta.url));
 
 const text = {
   en: {
-    usage: 'Usage: npm run create -- <image.png> [--name <name>] [--variants] [--expressions] [--no-open]\n\n'
-      + '  --name      project name under projects/ (default: from the file name)\n'
-      + '  --variants  let Codex send source.png and masks to its image generator for drawn\n'
-      + '              closed eyes and mouth shapes (Step 6 of the agent guide)\n'
-      + '  --expressions  also draw sad and surprised eyes and angry and sad mouths (implies --variants)\n'
-      + '  --no-open   do not start the editor when the avatar is ready',
+    usage: 'Usage: npm run create -- <image.png> [--name <name>] [--yes | --no-variants] [--no-open]\n\n'
+      + 'Codex also draws closed eyes, mouth shapes and expressions with OpenAI image generation.\n'
+      + 'The command asks first, because this sends the image and masks to OpenAI.\n\n'
+      + '  --name         project name under projects/ (default: from the file name)\n'
+      + '  --yes, -y      agree to the image generation without asking\n'
+      + '  --no-variants  keep everything on this machine and skip the drawn variants\n'
+      + '  --no-open      do not start the editor when the avatar is ready',
     missingImage: 'Give the path of a PNG illustration.',
     noImage: path => `Image not found: ${path}`,
     badName: name => `Invalid project name: ${name}. Use letters, digits, hyphens or underscores.`,
     exists: name => `projects/${name} already exists. Choose another --name.`,
+    consent: 'Codex will draw closed eyes, mouth shapes and expressions with OpenAI image generation.\nThis sends the image and masks to OpenAI. Continue? [Y/n] ',
+    noConsent: 'Not sending the image. The avatar is made without drawn variants.',
+    needConsent: 'Drawn variants send the image to OpenAI image generation. Without a terminal to ask, add --yes to agree or --no-variants to skip them.',
     environment: 'Fix the tools marked above, then run this command again.',
     noCodex: 'Codex CLI was not found. Install it and sign in: https://github.com/openai/codex',
     creating: name => `Creating projects/${name} …`,
@@ -31,16 +35,20 @@ const text = {
     opening: 'Starting the editor. Press Ctrl+C to stop it.',
   },
   ja: {
-    usage: '使い方: npm run create -- <image.png> [--name <name>] [--variants] [--expressions] [--no-open]\n\n'
-      + '  --name      projects/ に作るプロジェクト名(既定: ファイル名から作成)\n'
-      + '  --variants  閉じ目と口の形の描き分けのため、source.png とマスクを Codex の画像生成に\n'
-      + '              送ることを許可する(エージェントガイドの Step 6)\n'
-      + '  --expressions  悲しい目・驚いた目・怒った口・悲しい口も描かせる(--variants を含む)\n'
-      + '  --no-open   アバターができてもエディタを起動しない',
+    usage: '使い方: npm run create -- <image.png> [--name <name>] [--yes | --no-variants] [--no-open]\n\n'
+      + 'Codex は OpenAI の画像生成で、閉じ目・口の形・表情の描き分けも作ります。\n'
+      + '画像とマスクが OpenAI に送られるため、始める前に確認します。\n\n'
+      + '  --name         projects/ に作るプロジェクト名(既定: ファイル名から作成)\n'
+      + '  --yes, -y      確認せずに画像生成に同意する\n'
+      + '  --no-variants  すべてこのマシンの中で行い、描き分けは作らない\n'
+      + '  --no-open      アバターができてもエディタを起動しない',
     missingImage: 'PNG のイラストのパスを指定してください。',
     noImage: path => `画像が見つかりません: ${path}`,
     badName: name => `プロジェクト名が使えません: ${name}。英数字、ハイフン、アンダースコアを使ってください。`,
     exists: name => `projects/${name} は既にあります。別の --name を指定してください。`,
+    consent: 'Codex が OpenAI の画像生成で、閉じ目・口の形・表情の描き分けを作ります。\n画像とマスクが OpenAI に送られます。続けますか? [Y/n] ',
+    noConsent: '画像は送りません。描き分けなしでアバターを作ります。',
+    needConsent: '描き分けを作ると画像が OpenAI の画像生成に送られます。確認できる端末がないため、同意するなら --yes、作らないなら --no-variants を付けてください。',
     environment: '上の警告やエラーのツールを用意してから、もう一度実行してください。',
     noCodex: 'Codex CLI が見つかりません。インストールしてサインインしてください: https://github.com/openai/codex',
     creating: name => `projects/${name} を作成しています…`,
@@ -53,12 +61,12 @@ const text = {
 };
 
 export function parseArgs(argv) {
-  const options = { image: undefined, name: undefined, variants: false, expressions: false, open: true, help: false };
+  const options = { image: undefined, name: undefined, variants: true, yes: false, open: true, help: false };
   for (let index = 0; index < argv.length; index++) {
     const arg = argv[index];
     if (arg === '--help' || arg === '-h') options.help = true;
-    else if (arg === '--variants') options.variants = true;
-    else if (arg === '--expressions') options.variants = options.expressions = true;
+    else if (arg === '--yes' || arg === '-y') options.yes = true;
+    else if (arg === '--no-variants') options.variants = false;
     else if (arg === '--no-open') options.open = false;
     else if (arg === '--name') options.name = argv[++index];
     else if (arg.startsWith('--name=')) options.name = arg.slice(7);
@@ -79,7 +87,7 @@ export function projectName(image, taken = name => existsSync(join(root, 'projec
 }
 
 /** The request Codex runs non-interactively: every question in the guide is answered here. */
-export function agentPrompt(name, { variants, expressions = false }) {
+export function agentPrompt(name, { variants }) {
   const project = `projects/${name}`;
   return [
     `Create a mesh avatar in ${project} by following docs/agent-guide.md from "Before you start" through Step 7.`,
@@ -90,7 +98,7 @@ export function agentPrompt(name, { variants, expressions = false }) {
     `- Vision check: run it with ${project}/work/vision-check as the folder. If the score fails, stop and explain it in the hand-over notes.`,
     '- Image warnings (pose, covered face, missing transparency): record them in the hand-over notes and continue.',
     variants
-      ? `- Step 6: the person agreed to send source.png and the masks to your built-in image generator. Generate the required variants (closed, half and smiling eyes; mouths あ, half あ, い, お)${expressions ? ' and the expression variants (eyes_sad, eyes_surprise, mouth_angry, mouth_sad)' : ', not the optional expression ones'}, then run build-sprites and review the poses again. Generate a variant again when build-sprites rejects it or its pose frames look wrong.`
+      ? '- Step 6: the person agreed to send source.png and the masks to your built-in image generator. Generate every variant: closed, half and smiling eyes; mouths あ, half あ, い, お; and the expression variants eyes_sad, eyes_surprise, mouth_angry and mouth_sad. Then run build-sprites and review the poses again. Generate a variant again when build-sprites rejects it or its pose frames look wrong.'
       : '- Step 6: skip it. The person did not agree to send the image to an image generator.',
     `- Step 7: write the hand-over notes to ${project}/HANDOVER.md instead of telling the person. The editor is opened for them, so leave out how to open it.`,
     '',
@@ -108,6 +116,13 @@ const execute = (command, args, options = {}) => new Promise(done => {
   child.on('exit', status => done(status));
 });
 
+const confirm = async question => {
+  const { createInterface } = await import('node:readline/promises');
+  const prompt = createInterface({ input: process.stdin, output: process.stdout });
+  // Ctrl+C rejects the question; that cancels the whole command (null) rather than declining.
+  try { return !/^n/i.test((await prompt.question(question)).trim()); } catch { return null; } finally { prompt.close(); }
+};
+
 const capture = (command, args) => new Promise(done => {
   const child = spawn(command, args, { cwd: root, stdio: ['ignore', 'pipe', 'ignore'], windowsHide: true });
   let output = '';
@@ -118,7 +133,7 @@ const capture = (command, args) => new Promise(done => {
 
 export async function create(argv, deps = {}) {
   const { run = execute, read = capture, exists = existsSync, environment = checkEnvironment, log = console.log, error = console.error,
-    cwd = process.env.INIT_CWD || process.cwd() } = deps;
+    ask = confirm, interactive = Boolean(process.stdin.isTTY), cwd = process.env.INIT_CWD || process.cwd() } = deps;
   const lang = language(argv), t = text[lang], options = parseArgs(argv);
   if (options.help) { log(t.usage); return 0; }
   if (!options.image) { error(`${t.missingImage}\n\n${t.usage}`); return 1; }
@@ -128,6 +143,13 @@ export async function create(argv, deps = {}) {
   const name = options.name ?? projectName(options.image, value => exists(join(root, 'projects', value)));
   if (!validName(name)) { error(t.badName(name)); return 1; }
   if (exists(join(root, 'projects', name))) { error(t.exists(name)); return 1; }
+  // Ask before anything slow: the answer decides whether the image may leave this machine.
+  if (options.variants && !options.yes) {
+    if (!interactive) { error(t.needConsent); return 1; }
+    const answer = await ask(t.consent);
+    if (answer === null) return 130;
+    if (!answer) { options.variants = false; log(t.noConsent); }
+  }
 
   // Every step of the guide needs uv, Python and Chromium, so a warning blocks here.
   const results = await environment(lang);

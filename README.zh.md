@@ -61,10 +61,10 @@ npm run dev
 npm run create -- /path/to/your-image.png
 ```
 
-通常需要几十分钟。Codex 的说明写在 `projects/<name>/HANDOVER.md`。Codex 以 `--approve-for-me`
-运行，因此在沙箱外运行工具(例如姿势检查用的 Chromium)的请求由自动审核代替你决定。加上
-`--variants` 还会绘制闭眼和嘴型；加上 `--expressions` 还会绘制悲伤和惊讶的眼睛以及生气和悲伤的嘴。两者都会把图像和遮罩发送到 Codex 的图像生成器。用
-`npm run create -- --help` 查看全部选项。
+Codex 还会用 OpenAI 图像生成绘制闭眼、嘴型和表情。这会把图像和遮罩发送到 OpenAI，因此命令会先询问；
+加上 `--yes` 可预先同意，加上 `--no-variants` 则全部在本机完成。通常需要几十分钟。Codex 的说明写在
+`projects/<name>/HANDOVER.md`。Codex 以 `--approve-for-me` 运行，因此在沙箱外运行工具(例如姿势检查用的
+Chromium)的请求由自动审核代替你决定。用 `npm run create -- --help` 查看全部选项。
 
 ### 2. 打开项目并检查
 
