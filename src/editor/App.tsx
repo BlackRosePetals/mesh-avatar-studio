@@ -86,6 +86,14 @@ function Workspace() {
       const missing = list ? entries.filter(entry => entry.kind === 'server' && !list.some(project => project.name === entry.serverName)) : [];
       const available = entries.filter(entry => !missing.includes(entry));
       if (missing.length) { setRecent(available); saveRecent(available); setNotice({ key: 'missingRecent', path: missing.map(entry => entry.name).join(', ') }); }
+      // `npm run create` opens the editor at ?project=<name>; that project wins over the recent one.
+      const params = new URLSearchParams(location.search), requested = params.get('project');
+      if (requested !== null) {
+        params.delete('project');
+        window.history.replaceState(null, '', `${location.pathname}${params.size ? `?${params}` : ''}${location.hash}`);
+        const project = list?.find(item => item.name === requested && item.relativePath.startsWith('projects/'));
+        if (project && !project.error && !projectOpened.current) { projectOpened.current = true; await openLocal(project); return; }
+      }
       if (readPreference(REOPEN_KEY) === '0' || !available.length || projectOpened.current) return;
       const latest = available[0];
       if (latest.kind === 'server') {

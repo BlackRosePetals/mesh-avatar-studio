@@ -395,9 +395,10 @@ impl Avatar {
             );
             *pos = q.map(|v| v as f32);
         }
-        let has_sprites = self.sprites.is_some();
+        let eyes_drawn = self.sprites.as_ref().map_or([false; 2], |s| s.eyes_drawn);
+        let mut mouth_drawn = false;
         for eye in &mut self.eyes {
-            let open = if has_sprites {
+            let open = if eyes_drawn[eye.eye] {
                 1.0
             } else if eye.eye == 0 {
                 p.eye_r_open
@@ -444,6 +445,7 @@ impl Avatar {
                 },
             );
             let covered = sprites.update(&engine, &p, phys, dt, mood);
+            mouth_drawn = covered.mouth_drawn;
             for eye in &mut self.eyes {
                 if covered.eyes[eye.eye] {
                     eye.alpha = 0.0;
@@ -534,11 +536,11 @@ impl Avatar {
             eye_top: r.eyes.each_ref().map(|e| e.top.map(|v| v as f32)),
             eye_bot: r.eyes.each_ref().map(|e| e.bot.map(|v| v as f32)),
             eyes: [
-                if has_sprites { 1.0 } else { p.eye_r_open },
+                if eyes_drawn[0] { 1.0 } else { p.eye_r_open },
                 p.eye_smile,
                 p.gaze_x * 7.0,
                 -p.gaze_y * 7.0 * 0.6,
-                if has_sprites { 1.0 } else { p.eye_l_open },
+                if eyes_drawn[1] { 1.0 } else { p.eye_l_open },
                 p.eye_smile_l.unwrap_or(p.eye_smile),
                 p.gaze_x * 7.0 * 0.85,
                 -p.gaze_y * 7.0 * 0.6,
@@ -546,7 +548,7 @@ impl Avatar {
             .map(|v| v as f32),
             mouth: [mouth.cx, mouth.cy, mouth.angle, mouth.half_len].map(|v| v as f32),
             mouth_state: [
-                if has_sprites { 0.0 } else { p.mouth_open },
+                if mouth_drawn { 0.0 } else { p.mouth_open },
                 p.mouth_form,
                 mouth.bow,
                 0.0,

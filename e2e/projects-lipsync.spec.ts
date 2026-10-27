@@ -155,6 +155,16 @@ test('recent projects persist in order, auto-reopen, remove missing entries, and
   await expect(menu.getByText('No recent projects.', { exact: true })).toBeVisible();
 });
 
+test('a ?project= address opens that project instead of the recent one and is then removed', async ({ page }) => {
+  await open(page, 'sample-miko-qipao');
+  await page.goto(`/?project=${name}`);
+  await expect(page.getByTestId('project-location')).toContainText(name);
+  await expect(page.getByTestId('preview-status')).toHaveAttribute('data-state', 'ready');
+  expect(new URL(page.url()).search).toBe('');
+  await page.goto('/?project=missing-ui-test');
+  await expect(page.getByTestId('project-location')).toContainText(name);
+});
+
 test('picker projects without a persistent handle show Browse again in recent history', async ({ page }) => {
   await page.goto('/'); await dismissGuide(page);
   await page.getByLabel('Open project folder files', { exact: true }).setInputFiles(directory);

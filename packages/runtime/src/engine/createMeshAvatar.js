@@ -171,9 +171,9 @@ export async function createMeshAvatarImpl(canvas, options) {
     }
     // with drawn eye sprites the layered eye is only ever shown exactly as drawn: moving the
     // cut-out lash leaves seams at its edges
-    const eyeOpenFor = v => (sprites ? 1 : v);
+    const eyeOpenFor = (v, eye) => (sprites?.eyesDrawn[eye] ? 1 : v);
     for (const ep of eyeParts) {
-      const open = eyeOpenFor(ep.eye === 0 ? P.eyeROpen : P.eyeLOpen);
+      const open = eyeOpenFor(ep.eye === 0 ? P.eyeROpen : P.eyeLOpen, ep.eye);
       const smile = ep.eye === 0 ? P.eyeSmile : (P.eyeSmileL ?? P.eyeSmile);
       ep.layer.alpha = eyePartAlpha(ep.part, open, smile);
       const r = ep.mesh.rest, o = ep.mesh.pos;
@@ -197,11 +197,11 @@ export async function createMeshAvatarImpl(canvas, options) {
     R.draw({
       angleX: P.angleX, angleY: P.angleY, angleZ: P.angleZ,
       eyes: [
-        eyeOpenFor(P.eyeROpen), P.eyeSmile, P.gazeX * ball, -P.gazeY * ball * 0.6,
-        eyeOpenFor(P.eyeLOpen), P.eyeSmileL ?? P.eyeSmile, P.gazeX * ball * 0.85, -P.gazeY * ball * 0.6,
+        eyeOpenFor(P.eyeROpen, 0), P.eyeSmile, P.gazeX * ball, -P.gazeY * ball * 0.6,
+        eyeOpenFor(P.eyeLOpen, 1), P.eyeSmileL ?? P.eyeSmile, P.gazeX * ball * 0.85, -P.gazeY * ball * 0.6,
       ],
       // with sprites the drawn mouths replace the shader-painted one
-      mouthOpen: sprites ? 0 : P.mouthOpen, mouthForm: P.mouthForm, cheek: P.blush,
+      mouthOpen: cover?.mouthDrawn ? 0 : P.mouthOpen, mouthForm: P.mouthForm, cheek: P.blush,
       showMesh: false, originalAlpha: 0, joints: [],
     });
   }

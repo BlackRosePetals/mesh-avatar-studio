@@ -72,6 +72,24 @@ Recommended setups:
 | Claude Code | Claude Opus 5.5 |
 | Codex | GPT-6.1 Sol |
 
+#### One command with Codex
+
+With the [Codex CLI](https://github.com/openai/codex) installed and signed in, one command
+creates the project, has Codex follow the agent guide without questions and opens the editor
+on the result:
+
+```sh
+npm run create -- /path/to/your-image.png
+```
+
+Codex also draws closed eyes, mouth shapes and expressions with OpenAI image generation, and
+first closes an open mouth in the illustration so the avatar rests with it closed. This sends
+the image and masks to OpenAI, so the command asks first; add `--yes` to agree in advance, or
+`--no-variants` to keep everything on your machine. It usually takes tens of minutes. Codex writes its notes to `projects/<name>/HANDOVER.md`. It runs with
+`--approve-for-me`, so its requests to run tools outside its sandbox, such as Chromium for the
+pose review, are reviewed automatically instead of by you. `npm run create -- --help` lists the
+options.
+
 ### 2. Open the project and check it
 
 Start the editor (`npm run dev`), choose **Open project** and pick your project from the list.
