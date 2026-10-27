@@ -42,6 +42,8 @@ describe('npm run create', () => {
     expect(plain).toContain('projects/mio/HANDOVER.md');
     expect(plain).toContain('Step 6: skip it');
     expect(plain).toContain('do not stage or commit');
+    expect(plain).toContain('run the same command again with escalated permissions');
+    expect(plain).toContain('Do not post-process built/');
     const variants = agentPrompt('mio', { variants: true });
     expect(variants).toContain('the person agreed to send source.png and the masks');
     expect(variants).toContain('not the optional expression ones');

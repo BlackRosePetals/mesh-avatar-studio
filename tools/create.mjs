@@ -94,6 +94,9 @@ export function agentPrompt(name, { variants, expressions = false }) {
       : '- Step 6: skip it. The person did not agree to send the image to an image generator.',
     `- Step 7: write the hand-over notes to ${project}/HANDOVER.md instead of telling the person. The editor is opened for them, so leave out how to open it.`,
     '',
+    '- When a guide command fails only because of your sandbox (Chromium for render-poses cannot start there), run the same command again with escalated permissions. Do not copy or rewrite repository tools to work around it.',
+    '- Build the avatar only with the tools the guide names. Do not post-process built/ with your own scripts: the editor rebuilds the avatar with the same tools, which would undo such changes. Report what the tools cannot fix instead.',
+    '',
     `Only create or change files inside ${project}/. Do not change other files in the repository, and do not stage or commit anything.`,
     'End with a short summary of the result and the parts to check first.',
   ].join('\n');
