@@ -7,10 +7,10 @@ const root = fileURLToPath(new URL('..', import.meta.url));
 const ready = async () => ['node', 'packages', 'uv', 'python', 'chromium'].map(id => ({ id, status: 'ok', message: id }));
 
 function harness({ files = [] as string[], statuses = {} as Record<string, number | null>, environment = ready } = {}) {
-  const calls: { command: string; args: string[] }[] = [], logs: string[] = [], errors: string[] = [];
+  const calls: { command: string; args: string[]; options?: { stdio?: unknown } }[] = [], logs: string[] = [], errors: string[] = [];
   const existing = new Set(files);
-  const run = async (command: string, args: string[]) => {
-    calls.push({ command, args });
+  const run = async (command: string, args: string[], options?: { stdio?: unknown }) => {
+    calls.push({ command, args, options });
     const key = command === process.execPath ? 'vite' : `${command} ${args[0]}`;
     if (key === 'codex exec' && !(key in statuses)) {
       const name = args.at(-1)!.match(/in projects\/([^ ]+) by/)![1];
@@ -50,6 +50,7 @@ describe('npm run create', () => {
     expect(calls.map(call => `${call.command === process.execPath ? 'vite' : call.command} ${call.args[0]}`)).toEqual(['uv run', 'codex exec', 'vite ' + join(root, 'node_modules/vite/bin/vite.js')]);
     expect(calls[0].args).toEqual(['run', 'tools/new-project.py', '/work/mio.png', 'mio']);
     expect(calls[1].args.slice(0, 6)).toEqual(['exec', '--approve-for-me', '-C', root, '--add-dir', '/cache/uv']);
+    expect(calls[1].options?.stdio).toEqual(['ignore', 'inherit', 'inherit']);
     expect(calls[2].args).toContain('/?project=mio');
   });
 

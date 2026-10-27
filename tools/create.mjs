@@ -135,8 +135,9 @@ export async function create(argv, deps = {}) {
   log(t.agent);
   // Codex works in its sandbox and asks for more only to run Chromium and similar tools;
   // --approve-for-me has those requests reviewed automatically instead of by a person.
+  // Its stdin stays closed: codex exec would otherwise wait to append piped input to the prompt.
   const cache = await read('uv', ['cache', 'dir']);
-  const agent = await run('codex', ['exec', '--approve-for-me', '-C', root, ...(cache ? ['--add-dir', cache] : []), agentPrompt(name, options)]);
+  const agent = await run('codex', ['exec', '--approve-for-me', '-C', root, ...(cache ? ['--add-dir', cache] : []), agentPrompt(name, options)], { stdio: ['ignore', 'inherit', 'inherit'] });
   if (agent !== 0) { error(t.agentFailed(agent)); return agent ?? 1; }
   const project = join(root, 'projects', name);
   if (!exists(join(project, 'rig.json')) || !exists(join(project, 'built', 'base.png'))) { error(t.incomplete(name)); return 1; }
