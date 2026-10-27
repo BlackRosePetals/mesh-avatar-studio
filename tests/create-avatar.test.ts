@@ -27,6 +27,7 @@ describe('npm run create', () => {
   test('parses the image, name and flags', () => {
     expect(parseArgs(['a.png', '--name', 'mio', '--variants', '--no-open', '--lang', 'ja'])).toMatchObject({ image: 'a.png', name: 'mio', variants: true, open: false });
     expect(parseArgs(['--name=mio', 'b.png'])).toMatchObject({ image: 'b.png', name: 'mio', variants: false, open: true });
+    expect(parseArgs(['c.png', '--expressions'])).toMatchObject({ variants: true, expressions: true });
   });
 
   test('derives a project name from the file name and skips taken names', () => {
@@ -41,7 +42,10 @@ describe('npm run create', () => {
     expect(plain).toContain('projects/mio/HANDOVER.md');
     expect(plain).toContain('Step 6: skip it');
     expect(plain).toContain('do not stage or commit');
-    expect(agentPrompt('mio', { variants: true })).toContain('the person agreed to send source.png and the masks');
+    const variants = agentPrompt('mio', { variants: true });
+    expect(variants).toContain('the person agreed to send source.png and the masks');
+    expect(variants).toContain('not the optional expression ones');
+    expect(agentPrompt('mio', { variants: true, expressions: true })).toContain('eyes_sad, eyes_surprise, mouth_angry, mouth_sad');
   });
 
   test('creates the project, runs Codex and opens the editor on it', async () => {

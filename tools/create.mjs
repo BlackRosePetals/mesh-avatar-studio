@@ -11,10 +11,11 @@ const root = fileURLToPath(new URL('..', import.meta.url));
 
 const text = {
   en: {
-    usage: 'Usage: npm run create -- <image.png> [--name <name>] [--variants] [--no-open]\n\n'
+    usage: 'Usage: npm run create -- <image.png> [--name <name>] [--variants] [--expressions] [--no-open]\n\n'
       + '  --name      project name under projects/ (default: from the file name)\n'
       + '  --variants  let Codex send source.png and masks to its image generator for drawn\n'
       + '              closed eyes and mouth shapes (Step 6 of the agent guide)\n'
+      + '  --expressions  also draw sad and surprised eyes and angry and sad mouths (implies --variants)\n'
       + '  --no-open   do not start the editor when the avatar is ready',
     missingImage: 'Give the path of a PNG illustration.',
     noImage: path => `Image not found: ${path}`,
@@ -30,10 +31,11 @@ const text = {
     opening: 'Starting the editor. Press Ctrl+C to stop it.',
   },
   ja: {
-    usage: '使い方: npm run create -- <image.png> [--name <name>] [--variants] [--no-open]\n\n'
+    usage: '使い方: npm run create -- <image.png> [--name <name>] [--variants] [--expressions] [--no-open]\n\n'
       + '  --name      projects/ に作るプロジェクト名(既定: ファイル名から作成)\n'
       + '  --variants  閉じ目と口の形の描き分けのため、source.png とマスクを Codex の画像生成に\n'
       + '              送ることを許可する(エージェントガイドの Step 6)\n'
+      + '  --expressions  悲しい目・驚いた目・怒った口・悲しい口も描かせる(--variants を含む)\n'
       + '  --no-open   アバターができてもエディタを起動しない',
     missingImage: 'PNG のイラストのパスを指定してください。',
     noImage: path => `画像が見つかりません: ${path}`,
@@ -51,11 +53,12 @@ const text = {
 };
 
 export function parseArgs(argv) {
-  const options = { image: undefined, name: undefined, variants: false, open: true, help: false };
+  const options = { image: undefined, name: undefined, variants: false, expressions: false, open: true, help: false };
   for (let index = 0; index < argv.length; index++) {
     const arg = argv[index];
     if (arg === '--help' || arg === '-h') options.help = true;
     else if (arg === '--variants') options.variants = true;
+    else if (arg === '--expressions') options.variants = options.expressions = true;
     else if (arg === '--no-open') options.open = false;
     else if (arg === '--name') options.name = argv[++index];
     else if (arg.startsWith('--name=')) options.name = arg.slice(7);
@@ -76,7 +79,7 @@ export function projectName(image, taken = name => existsSync(join(root, 'projec
 }
 
 /** The request Codex runs non-interactively: every question in the guide is answered here. */
-export function agentPrompt(name, { variants }) {
+export function agentPrompt(name, { variants, expressions = false }) {
   const project = `projects/${name}`;
   return [
     `Create a mesh avatar in ${project} by following docs/agent-guide.md from "Before you start" through Step 7.`,
@@ -87,7 +90,7 @@ export function agentPrompt(name, { variants }) {
     `- Vision check: run it with ${project}/work/vision-check as the folder. If the score fails, stop and explain it in the hand-over notes.`,
     '- Image warnings (pose, covered face, missing transparency): record them in the hand-over notes and continue.',
     variants
-      ? '- Step 6: the person agreed to send source.png and the masks to your built-in image generator. Generate the required variants (closed, half and smiling eyes; mouths あ, half あ, い, お), not the optional expression ones, then run build-sprites and review the poses again.'
+      ? `- Step 6: the person agreed to send source.png and the masks to your built-in image generator. Generate the required variants (closed, half and smiling eyes; mouths あ, half あ, い, お)${expressions ? ' and the expression variants (eyes_sad, eyes_surprise, mouth_angry, mouth_sad)' : ', not the optional expression ones'}, then run build-sprites and review the poses again. Generate a variant again when build-sprites rejects it or its pose frames look wrong.`
       : '- Step 6: skip it. The person did not agree to send the image to an image generator.',
     `- Step 7: write the hand-over notes to ${project}/HANDOVER.md instead of telling the person. The editor is opened for them, so leave out how to open it.`,
     '',

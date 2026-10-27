@@ -64,7 +64,7 @@ npm run create -- /path/to/your-image.png
 通常は数十分かかります。Codex のメモは `projects/<name>/HANDOVER.md` に書き出されます。
 Codex は `--approve-for-me` 付きで動くため、ポーズ確認用の Chromium など sandbox の外でツールを動かす許可は、
 あなたの代わりに自動レビューが判断します。`--variants` を付けると閉じ目と口の形も描かせます。
-このとき画像とマスクが Codex の画像生成に送られます。オプションは `npm run create -- --help` で確認できます。
+`--expressions` を付けると、さらに悲しい目・驚いた目・怒った口・悲しい口も描かせます。どちらも画像とマスクが Codex の画像生成に送られます。オプションは `npm run create -- --help` で確認できます。
 
 ### 2. プロジェクトを開いて確認する
 

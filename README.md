@@ -85,8 +85,8 @@ npm run create -- /path/to/your-image.png
 It usually takes tens of minutes. Codex writes its notes to `projects/<name>/HANDOVER.md`.
 It runs with `--approve-for-me`, so its requests to run tools outside its sandbox, such as
 Chromium for the pose review, are reviewed automatically instead of by you. Add `--variants`
-to have it draw closed eyes and mouth shapes as well; this sends the image and masks to its
-image generator. `npm run create -- --help` lists the options.
+to have it draw closed eyes and mouth shapes as well, or `--expressions` to add sad and
+surprised eyes and angry and sad mouths; both send the image and masks to its image generator. `npm run create -- --help` lists the options.
 
 ### 2. Open the project and check it
 
