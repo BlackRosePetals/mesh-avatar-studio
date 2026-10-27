@@ -103,6 +103,7 @@ npm run create -- --random --prompt "silver short hair, school uniform"
 ### 2. Open the project and check it
 
 Start the editor (`npm run dev`), choose **Open project** and pick your project from the list.
+The pencil next to a project renames it, together with its folder under `projects/`.
 In the preview, use **Pose test** to turn and tilt the head and close the eyes. In **Lip sync**,
 choose a mouth style and try it with kana text. Open **Fine-tune** to adjust movement, size
 and closing, or preview a local audio file.

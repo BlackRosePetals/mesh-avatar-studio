@@ -155,6 +155,43 @@ test('recent projects persist in order, auto-reopen, remove missing entries, and
   await expect(menu.getByText('No recent projects.', { exact: true })).toBeVisible();
 });
 
+test('the edit button renames a project in place, keeps it open and follows it in recent history', async ({ page }) => {
+  await open(page, name);
+  await page.locator('.open-menu > summary').click();
+  const menu = page.locator('.project-menu');
+  await expect(menu.getByRole('button', { name: 'Rename Sample project', exact: true })).toHaveCount(0);
+  await menu.getByRole('button', { name: `Rename ${name}`, exact: true }).click();
+  const field = menu.getByLabel('New project name');
+  await expect(field).toHaveValue(name);
+  // Escape cancels the edit without closing the menu
+  await field.press('Escape');
+  await expect(menu).toBeVisible();
+  await expect(field).toHaveCount(0);
+  await menu.getByRole('button', { name: `Rename ${name}`, exact: true }).click();
+  await field.fill('has space');
+  await menu.getByRole('button', { name: 'Rename', exact: true }).click();
+  await expect(menu.getByRole('alert')).toHaveText('Use letters, digits, hyphens or underscores, starting with a letter or digit.');
+  await field.fill('sample-miko-qipao');
+  await menu.getByRole('button', { name: 'Rename', exact: true }).click();
+  await expect(menu.getByRole('alert')).toContainText('Use letters, digits');
+  const renamed = `${name}-renamed`;
+  await field.fill(renamed);
+  await field.press('Enter');
+  await expect(menu.getByTestId(`project-${renamed}`)).toBeVisible();
+  await expect(menu.getByTestId(`project-${name}`)).toHaveCount(0);
+  directory = resolve('projects', renamed);
+  await expect(page.getByTestId('project-location')).toContainText(renamed);
+  await expect(menu.getByTestId(`recent-server:${renamed}`)).toBeVisible();
+  await page.keyboard.press('Escape');
+  // saving goes to the renamed folder
+  await page.getByTestId('part-head').click();
+  await page.getByRole('spinbutton', { name: 'head.cx', exact: true }).fill('556');
+  await page.keyboard.press('ControlOrMeta+s');
+  await expect.poll(async () => JSON.parse(await readFile(join(directory, 'rig.json'), 'utf8')).head.cx).toBe(556);
+  await page.reload();
+  await expect(page.getByTestId('project-location')).toContainText(renamed);
+});
+
 test('a ?project= address opens that project instead of the recent one and is then removed', async ({ page }) => {
   await open(page, 'sample-miko-qipao');
   await page.goto(`/?project=${name}`);
