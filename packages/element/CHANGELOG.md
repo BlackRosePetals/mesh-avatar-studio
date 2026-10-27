@@ -1,5 +1,13 @@
 # mesh-avatar-element
 
+## 0.2.1
+
+### Patch Changes
+
+- 386ab9b: The standalone build (`mesh-avatar-element/standalone`) now carries the runtime fix for avatars with only some drawn eye or mouth variants: missing drawings fall back to the layered eye and the shader mouth instead of hiding the eyes or the mouth.
+- Updated dependencies [9e3001b]
+  - mesh-avatar@0.3.1
+
 ## 0.2.0
 
 ### Minor Changes
