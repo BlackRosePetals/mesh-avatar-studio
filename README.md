@@ -82,10 +82,10 @@ on the result:
 npm run create -- /path/to/your-image.png
 ```
 
-Codex also draws closed eyes, mouth shapes and expressions with OpenAI image generation. This
-sends the image and masks to OpenAI, so the command asks first; add `--yes` to agree in
-advance, or `--no-variants` to keep everything on your machine. It usually takes tens of
-minutes. Codex writes its notes to `projects/<name>/HANDOVER.md`. It runs with
+Codex also draws closed eyes, mouth shapes and expressions with OpenAI image generation, and
+first closes an open mouth in the illustration so the avatar rests with it closed. This sends
+the image and masks to OpenAI, so the command asks first; add `--yes` to agree in advance, or
+`--no-variants` to keep everything on your machine. It usually takes tens of minutes. Codex writes its notes to `projects/<name>/HANDOVER.md`. It runs with
 `--approve-for-me`, so its requests to run tools outside its sandbox, such as Chromium for the
 pose review, are reviewed automatically instead of by you. `npm run create -- --help` lists the
 options.

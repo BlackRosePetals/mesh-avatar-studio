@@ -2,17 +2,23 @@
 // One command from an illustration to an open editor: creates projects/<name>, has Codex
 // follow docs/agent-guide.md without questions, then starts the editor on that project.
 import { spawn } from 'node:child_process';
-import { existsSync, realpathSync } from 'node:fs';
+import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import { basename, extname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { checkEnvironment, formatReport, language } from './doctor.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
+// Sprite layers that build-sprites cuts from every drawn variant.
+export const SPRITES = [
+  ...['closed', 'half', 'smile', 'sad', 'surprise'].flatMap(eye => [`eyes_${eye}_0`, `eyes_${eye}_1`]),
+  'mouth_a', 'mouth_a_half', 'mouth_i', 'mouth_o', 'mouth_angry', 'mouth_sad',
+];
 
 const text = {
   en: {
     usage: 'Usage: npm run create -- <image.png> [--name <name>] [--yes | --no-variants] [--no-open]\n\n'
-      + 'Codex also draws closed eyes, mouth shapes and expressions with OpenAI image generation.\n'
+      + 'Codex also draws closed eyes, mouth shapes and expressions with OpenAI image generation,\n'
+      + 'and closes an open mouth in the illustration first so the avatar rests with it closed.\n'
       + 'The command asks first, because this sends the image and masks to OpenAI.\n\n'
       + '  --name         project name under projects/ (default: from the file name)\n'
       + '  --yes, -y      agree to the image generation without asking\n'
@@ -22,7 +28,7 @@ const text = {
     noImage: path => `Image not found: ${path}`,
     badName: name => `Invalid project name: ${name}. Use letters, digits, hyphens or underscores.`,
     exists: name => `projects/${name} already exists. Choose another --name.`,
-    consent: 'Codex will draw closed eyes, mouth shapes and expressions with OpenAI image generation.\nThis sends the image and masks to OpenAI. Continue? [Y/n] ',
+    consent: 'Codex will draw closed eyes, mouth shapes and expressions with OpenAI image generation,\nand close the mouth first if it is open in the illustration.\nThis sends the image and masks to OpenAI. Continue? [Y/n] ',
     noConsent: 'Not sending the image. The avatar is made without drawn variants.',
     needConsent: 'Drawn variants send the image to OpenAI image generation. Without a terminal to ask, add --yes to agree or --no-variants to skip them.',
     environment: 'Fix the tools marked above, then run this command again.',
@@ -31,12 +37,14 @@ const text = {
     agent: 'Codex is building the avatar. This usually takes tens of minutes.',
     agentFailed: status => `Codex stopped with exit code ${status}. Its notes, if any, are in the project folder.`,
     incomplete: name => `Codex finished but projects/${name} has no built avatar. Read projects/${name}/HANDOVER.md for the reason.`,
+    missingVariants: names => `These drawn variants are missing, so the avatar falls back for them: ${names.join(', ')}. See HANDOVER.md.`,
     ready: name => `The avatar is ready: projects/${name}. Hand-over notes: projects/${name}/HANDOVER.md`,
     opening: 'Starting the editor. Press Ctrl+C to stop it.',
   },
   ja: {
     usage: '使い方: npm run create -- <image.png> [--name <name>] [--yes | --no-variants] [--no-open]\n\n'
       + 'Codex は OpenAI の画像生成で、閉じ目・口の形・表情の描き分けも作ります。\n'
+      + 'イラストの口が開いていれば、先に口を閉じた絵にしてから作ります。\n'
       + '画像とマスクが OpenAI に送られるため、始める前に確認します。\n\n'
       + '  --name         projects/ に作るプロジェクト名(既定: ファイル名から作成)\n'
       + '  --yes, -y      確認せずに画像生成に同意する\n'
@@ -46,7 +54,7 @@ const text = {
     noImage: path => `画像が見つかりません: ${path}`,
     badName: name => `プロジェクト名が使えません: ${name}。英数字、ハイフン、アンダースコアを使ってください。`,
     exists: name => `projects/${name} は既にあります。別の --name を指定してください。`,
-    consent: 'Codex が OpenAI の画像生成で、閉じ目・口の形・表情の描き分けを作ります。\n画像とマスクが OpenAI に送られます。続けますか? [Y/n] ',
+    consent: 'Codex が OpenAI の画像生成で、閉じ目・口の形・表情の描き分けを作ります。\nイラストの口が開いていれば、先に口を閉じた絵にします。\n画像とマスクが OpenAI に送られます。続けますか? [Y/n] ',
     noConsent: '画像は送りません。描き分けなしでアバターを作ります。',
     needConsent: '描き分けを作ると画像が OpenAI の画像生成に送られます。確認できる端末がないため、同意するなら --yes、作らないなら --no-variants を付けてください。',
     environment: '上の警告やエラーのツールを用意してから、もう一度実行してください。',
@@ -55,6 +63,7 @@ const text = {
     agent: 'Codex がアバターを作っています。通常は数十分かかります。',
     agentFailed: status => `Codex が終了コード ${status} で止まりました。メモがあればプロジェクトフォルダにあります。`,
     incomplete: name => `Codex は終了しましたが、projects/${name} にアバターができていません。理由は projects/${name}/HANDOVER.md を確認してください。`,
+    missingVariants: names => `次の描き分けがなく、代わりの表示になります: ${names.join(', ')}。HANDOVER.md を確認してください。`,
     ready: name => `アバターができました: projects/${name}。引き継ぎメモ: projects/${name}/HANDOVER.md`,
     opening: 'エディタを起動します。止めるときは Ctrl+C を押してください。',
   },
@@ -86,6 +95,17 @@ export function projectName(image, taken = name => existsSync(join(root, 'projec
   return name;
 }
 
+// The rig takes the mouth in the illustration as the closed rest mouth; an open one stays open
+// while silent and in every expression. With the image generator allowed, close it first.
+const closeMouth = project => [
+  `- Open mouth (before Step 2): look at ${project}/source.png. If the mouth is open (teeth, tongue or the inside of the mouth show), close it first:`,
+  `  1. Copy source.png to ${project}/work/original-source.png.`,
+  '  2. With your image generator and source.png as the input, redraw only the mouth as a natural closed mouth in the same art style and expression (one thin lip line, no teeth, tongue or gap). Keep everything else the same.',
+  '  3. The generator may shift, rescale or repaint the picture, so do not use its output directly: align it to source.png at the same size, then composite only the mouth region onto source.png with a soft-edged mask a little larger than the open mouth. Every pixel outside the mask, alpha included, must stay identical; check this with a script.',
+  `  4. Save a 3x zoomed side-by-side crop (original | closed) to ${project}/work/closed-mouth-compare.png and look at it. Generate again, up to 4 tries, if the mouth looks unnatural or off-style, traces of the open mouth remain, or the skin shows a patch at the mask edge.`,
+  `  5. Overwrite ${project}/source.png with the result (same size) and record what you did in the hand-over notes. If the mouth is already closed, leave source.png unchanged.`,
+].join('\n');
+
 /** The request Codex runs non-interactively: every question in the guide is answered here. */
 export function agentPrompt(name, { variants }) {
   const project = `projects/${name}`;
@@ -97,8 +117,9 @@ export function agentPrompt(name, { variants }) {
     '- Model: state which model you are running as in the hand-over notes and continue.',
     `- Vision check: run it with ${project}/work/vision-check as the folder. If the score fails, stop and explain it in the hand-over notes.`,
     '- Image warnings (pose, covered face, missing transparency): record them in the hand-over notes and continue.',
+    variants ? closeMouth(project) : '- Open mouth: if the mouth in source.png is open, record in the hand-over notes that the avatar rests with it open, because closing it needs the image generator, which the person declined.',
     variants
-      ? '- Step 6: the person agreed to send source.png and the masks to your built-in image generator. Generate every variant: closed, half and smiling eyes; mouths あ, half あ, い, お; and the expression variants eyes_sad, eyes_surprise, mouth_angry and mouth_sad. Then run build-sprites and review the poses again. Generate a variant again when build-sprites rejects it or its pose frames look wrong.'
+      ? '- Step 6: the person agreed to send source.png and the masks to your built-in image generator. Generate every variant: closed, half and smiling eyes; mouths あ, half あ, い, お; and the expression variants eyes_sad, eyes_surprise, mouth_angry and mouth_sad. Then run build-sprites and review the poses again. Generate a variant again when build-sprites rejects it or its pose frames look wrong, up to 4 tries each. Do not finish Step 6 while a variant is missing; report any that still fail after 4 tries.'
       : '- Step 6: skip it. The person did not agree to send the image to an image generator.',
     `- Step 7: write the hand-over notes to ${project}/HANDOVER.md instead of telling the person. The editor is opened for them, so leave out how to open it.`,
     '',
@@ -134,7 +155,7 @@ const capture = (command, args) => new Promise(done => {
 
 export async function create(argv, deps = {}) {
   const { run = execute, read = capture, exists = existsSync, environment = checkEnvironment, log = console.log, error = console.error,
-    ask = confirm, interactive = Boolean(process.stdin.isTTY), cwd = process.env.INIT_CWD || process.cwd() } = deps;
+    readJson = path => JSON.parse(readFileSync(path, 'utf8')), ask = confirm, interactive = Boolean(process.stdin.isTTY), cwd = process.env.INIT_CWD || process.cwd() } = deps;
   const lang = language(argv), t = text[lang], options = parseArgs(argv);
   if (options.help) { log(t.usage); return 0; }
   if (!options.image) { error(`${t.missingImage}\n\n${t.usage}`); return 1; }
@@ -170,6 +191,12 @@ export async function create(argv, deps = {}) {
   if (agent !== 0) { error(t.agentFailed(agent)); return agent ?? 1; }
   const project = join(root, 'projects', name);
   if (!exists(join(project, 'rig.json')) || !exists(join(project, 'built', 'base.png'))) { error(t.incomplete(name)); return 1; }
+  if (options.variants) {
+    let layers = {};
+    try { layers = readJson(join(project, 'built', 'sprites', 'sprites.json')).layers ?? {}; } catch { /* no sprites were built */ }
+    const missing = SPRITES.filter(sprite => !(sprite in layers));
+    if (missing.length) error(t.missingVariants(missing));
+  }
   log(t.ready(name));
   if (!options.open) return 0;
 

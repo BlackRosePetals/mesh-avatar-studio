@@ -1,12 +1,12 @@
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, test } from 'vitest';
-import { agentPrompt, create, parseArgs, projectName } from '../tools/create.mjs';
+import { agentPrompt, create, parseArgs, projectName, SPRITES } from '../tools/create.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const ready = async () => ['node', 'packages', 'uv', 'python', 'chromium'].map(id => ({ id, status: 'ok', message: id }));
 
-function harness({ files = [] as string[], statuses = {} as Record<string, number | null>, environment = ready, answer = true as boolean | null, interactive = true } = {}) {
+function harness({ files = [] as string[], statuses = {} as Record<string, number | null>, environment = ready, answer = true as boolean | null, interactive = true, sprites = SPRITES } = {}) {
   const calls: { command: string; args: string[]; options?: { stdio?: unknown } }[] = [], logs: string[] = [], errors: string[] = [], questions: string[] = [];
   const existing = new Set(files);
   const run = async (command: string, args: string[], options?: { stdio?: unknown }) => {
@@ -20,7 +20,8 @@ function harness({ files = [] as string[], statuses = {} as Record<string, numbe
   };
   const read = async (command: string) => command === 'codex' ? 'codex-cli 0.164.0' : '/cache/uv';
   const ask = async (question: string) => { questions.push(question); return answer; };
-  const deps = { run, read, ask, interactive, exists: (path: string) => existing.has(path), environment, log: (m: string) => logs.push(m), error: (m: string) => errors.push(m), cwd: '/work' };
+  const readJson = () => ({ layers: Object.fromEntries(sprites.map(sprite => [sprite, [0, 0, 1, 1]])) });
+  const deps = { run, read, readJson, ask, interactive, exists: (path: string) => existing.has(path), environment, log: (m: string) => logs.push(m), error: (m: string) => errors.push(m), cwd: '/work' };
   return { calls, logs, errors, questions, deps };
 }
 
@@ -42,6 +43,8 @@ describe('npm run create', () => {
     expect(plain).toContain('docs/agent-guide.md');
     expect(plain).toContain('projects/mio/HANDOVER.md');
     expect(plain).toContain('Step 6: skip it');
+    expect(plain).toContain('the avatar rests with it open');
+    expect(plain).not.toContain('close it first');
     expect(plain).toContain('do not stage or commit');
     expect(plain).toContain('run the same command again with escalated permissions');
     expect(plain).toContain('Do not post-process built/');
@@ -49,6 +52,11 @@ describe('npm run create', () => {
     const variants = agentPrompt('mio', { variants: true });
     expect(variants).toContain('the person agreed to send source.png and the masks');
     expect(variants).toContain('eyes_sad, eyes_surprise, mouth_angry and mouth_sad');
+    expect(variants).toContain('Do not finish Step 6 while a variant is missing');
+    // an open mouth is closed before the rig is drawn, keeping every other pixel
+    expect(variants).toContain('Open mouth (before Step 2)');
+    expect(variants).toContain('Every pixel outside the mask, alpha included, must stay identical');
+    expect(variants).toContain('projects/mio/work/original-source.png');
   });
 
   test('asks about OpenAI image generation first, then creates the project, runs Codex and opens the editor', async () => {
@@ -81,6 +89,19 @@ describe('npm run create', () => {
     const { calls, deps } = harness({ files: ['/work/mio.png'], answer: null });
     expect(await create(['mio.png', '--lang', 'en'], deps)).toBe(130);
     expect(calls).toEqual([]);
+  });
+
+  test('names the drawn variants that are still missing, and still opens the editor', async () => {
+    const complete = harness({ files: ['/work/mio.png'] });
+    expect(await create(['mio.png', '--lang', 'en'], complete.deps)).toBe(0);
+    expect(complete.errors).toEqual([]);
+    const partial = harness({ files: ['/work/mio.png'], sprites: SPRITES.filter(sprite => !sprite.startsWith('mouth_o') && !sprite.startsWith('eyes_half')) });
+    expect(await create(['mio.png', '--lang', 'en'], partial.deps)).toBe(0);
+    expect(partial.errors[0]).toContain('eyes_half_0, eyes_half_1, mouth_o');
+    expect(partial.calls.at(-1)!.command).toBe(process.execPath);
+    const skipped = harness({ files: ['/work/mio.png'], sprites: [] });
+    expect(await create(['mio.png', '--no-variants', '--lang', 'en'], skipped.deps)).toBe(0);
+    expect(skipped.errors).toEqual([]);
   });
 
   test('without a terminal it needs --yes or --no-variants before doing anything', async () => {
