@@ -67,6 +67,9 @@ summary::-webkit-details-marker { display: none; }
 .rename-actions { display: flex; gap: 6px; margin-top: 8px; }
 .project-menu .rename-actions button { width: auto; flex: 1; margin: 0; text-align: center; border: 1px solid var(--line); }
 .project-menu .rename-actions button:not(.primary) { background: var(--surface); }
+/* .project-list button would otherwise give the primary button its pale row background */
+.project-menu .rename-actions button.primary { color: white; background: var(--accent); border-color: var(--accent); }
+.project-menu .rename-actions button.primary:hover:not(:disabled) { color: white; background: #1d4ed8; }
 .project-menu button.unreadable-project:disabled { opacity: 1; color: var(--muted); cursor: not-allowed; }
 .badge { display: inline-block; font-size: 10px; color: #395476; background: #edf3ff; border-radius: 4px; padding: 2px 4px; margin-left: 6px; }
 .recent-projects { padding: 8px; border-bottom: 1px solid var(--line); text-align: left; }
