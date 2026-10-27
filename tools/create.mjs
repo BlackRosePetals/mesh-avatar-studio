@@ -106,6 +106,7 @@ export function agentPrompt(name, { variants }) {
     '- Build the avatar only with the tools the guide names. Do not post-process built/ with your own scripts: the editor rebuilds the avatar with the same tools, which would undo such changes. Report what the tools cannot fix instead.',
     '',
     `Only create or change files inside ${project}/. Do not change other files in the repository, and do not stage or commit anything.`,
+    'Your image generator also keeps its own copy of each result outside the repository (for example ~/.codex/generated_images); that is expected and allowed.',
     'End with a short summary of the result and the parts to check first.',
   ].join('\n');
 }

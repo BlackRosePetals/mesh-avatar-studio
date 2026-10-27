@@ -45,6 +45,7 @@ describe('npm run create', () => {
     expect(plain).toContain('do not stage or commit');
     expect(plain).toContain('run the same command again with escalated permissions');
     expect(plain).toContain('Do not post-process built/');
+    expect(plain).toContain('keeps its own copy of each result outside the repository');
     const variants = agentPrompt('mio', { variants: true });
     expect(variants).toContain('the person agreed to send source.png and the masks');
     expect(variants).toContain('eyes_sad, eyes_surprise, mouth_angry and mouth_sad');
