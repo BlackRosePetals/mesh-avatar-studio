@@ -66,6 +66,15 @@ Codex 还会用 OpenAI 图像生成绘制闭眼、嘴型和表情；如果插画
 `projects/<name>/HANDOVER.md`。Codex 以 `--approve-for-me` 运行，因此在沙箱外运行工具(例如姿势检查用的
 Chromium)的请求由自动审核代替你决定。用 `npm run create -- --help` 查看全部选项。
 
+没有插画时，加上 `--random` 会让 Codex 先画一个新的动漫风格女孩，再用她制作虚拟形象。外观随机决定；
+可用 `--prompt` 描述你想要的样子，用 `--seed` 重现同样的随机组合。画好的图保存在 `work/random/`，
+选定的外观保存在 `projects/<name>/work/character.json`。
+
+```sh
+npm run create -- --random
+npm run create -- --random --prompt "银色短发，校服"
+```
+
 ### 2. 打开项目并检查
 
 启动编辑器（`npm run dev`），选择**打开项目**，从列表中挑选你的项目。在预览里使用**姿态测试**转头、倾斜头部、闭眼。在**嘴型测试**里选择口型样式，输入假名文本试试效果。打开**高级设置**调整动作幅度、大小和闭合度，或预览本地音频文件。

@@ -90,6 +90,16 @@ the image and masks to OpenAI, so the command asks first; add `--yes` to agree i
 pose review, are reviewed automatically instead of by you. `npm run create -- --help` lists the
 options.
 
+Without an illustration, `--random` has Codex draw a new anime-style girl first and builds the
+avatar from her. Her looks are chosen at random; `--prompt` describes what you want instead,
+and `--seed` repeats the same random choices. The drawing is kept in `work/random/`, and the
+choices in `projects/<name>/work/character.json`.
+
+```sh
+npm run create -- --random
+npm run create -- --random --prompt "silver short hair, school uniform"
+```
+
 ### 2. Open the project and check it
 
 Start the editor (`npm run dev`), choose **Open project** and pick your project from the list.
