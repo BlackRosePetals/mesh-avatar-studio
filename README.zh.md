@@ -52,6 +52,20 @@ npm run dev
 | Claude Code | Claude Opus 5.5 |
 | Codex | GPT-6.1 Sol |
 
+#### 用 Codex 一条命令完成
+
+安装并登录 [Codex CLI](https://github.com/openai/codex) 后，一条命令即可创建项目、让 Codex
+按照助手指南完成全部步骤(中途不提问)，并在编辑器中打开结果:
+
+```sh
+npm run create -- /path/to/your-image.png
+```
+
+通常需要几十分钟。Codex 的说明写在 `projects/<name>/HANDOVER.md`。Codex 以 `--approve-for-me`
+运行，因此在沙箱外运行工具(例如姿势检查用的 Chromium)的请求由自动审核代替你决定。加上
+`--variants` 还会绘制闭眼和嘴型，此时图像和遮罩会发送到 Codex 的图像生成器。用
+`npm run create -- --help` 查看全部选项。
+
 ### 2. 打开项目并检查
 
 启动编辑器（`npm run dev`），选择**打开项目**，从列表中挑选你的项目。在预览里使用**姿态测试**转头、倾斜头部、闭眼。在**嘴型测试**里选择口型样式，输入假名文本试试效果。打开**高级设置**调整动作幅度、大小和闭合度，或预览本地音频文件。

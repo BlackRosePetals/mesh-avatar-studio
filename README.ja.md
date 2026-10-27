@@ -52,6 +52,20 @@ npm run dev
 | Claude Code | Claude Opus 5.5 |
 | Codex | GPT-6.1 Sol |
 
+#### Codex でコマンド1つで作る
+
+[Codex CLI](https://github.com/openai/codex) をインストールしてサインインしていれば、次のコマンド1つで
+プロジェクトの作成、Codex によるエージェントガイドの実行(途中の質問なし)、完成したアバターをエディタで開くところまで進みます。
+
+```sh
+npm run create -- /path/to/your-image.png
+```
+
+通常は数十分かかります。Codex のメモは `projects/<name>/HANDOVER.md` に書き出されます。
+Codex は `--approve-for-me` 付きで動くため、ポーズ確認用の Chromium など sandbox の外でツールを動かす許可は、
+あなたの代わりに自動レビューが判断します。`--variants` を付けると閉じ目と口の形も描かせます。
+このとき画像とマスクが Codex の画像生成に送られます。オプションは `npm run create -- --help` で確認できます。
+
 ### 2. プロジェクトを開いて確認する
 
 エディタを起動し(`npm run dev`)、「プロジェクトを開く」の一覧から作ったプロジェクトを選びます。「ポーズ確認」で顔の向きや傾き、目の開閉を確かめ、「口の動き」では「ゆったり」「キビキビ」などを選んで口パクを試します。「細かく調整する」で口の大きさや閉じ方を調整し、音声ファイルでも確認できます。
