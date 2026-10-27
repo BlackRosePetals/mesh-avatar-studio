@@ -140,10 +140,17 @@ struct EyeState {
 pub struct SpriteCoverage {
     pub eyes: [bool; 2],
     pub mouth: Option<MouthShape>,
+    /// Whether a drawing shows the mouth, so the shader mouth is left out.
+    #[serde(rename = "mouthDrawn")]
+    pub mouth_drawn: bool,
 }
 
 pub struct Sprites {
     pub items: Vec<SpriteItem>,
+    /// Whether each eye has the closed and half-closed drawings, so the layered eye stays open.
+    /// A partial set leaves what is missing to the layered eye and the shader mouth.
+    pub eyes_drawn: [bool; 2],
+    mouths_drawn: bool,
     last_shape: Option<MouthShape>,
     eye_state: [EyeState; 2],
 }
@@ -245,8 +252,24 @@ impl Sprites {
                 alpha: 1.0,
             });
         }
+        let has = |name: &str| items.iter().any(|it: &SpriteItem| it.name == name);
+        let eyes_drawn = std::array::from_fn(|i| {
+            has(&format!("eyes_closed_{i}")) && has(&format!("eyes_half_{i}"))
+        });
+        let mouths_drawn = [
+            MouthShape::A,
+            MouthShape::AHalf,
+            MouthShape::I,
+            MouthShape::E,
+            MouthShape::O,
+            MouthShape::U,
+        ]
+        .into_iter()
+        .any(|shape| has(shape.definition().0));
         Ok(Self {
             items,
+            eyes_drawn,
+            mouths_drawn,
             last_shape: None,
             eye_state: std::array::from_fn(|_| EyeState {
                 cur: "open".into(),
@@ -302,7 +325,14 @@ impl Sprites {
                             .any(|it| it.name == format!("eyes_{m}_{i}"))
                 })
                 .map(|m| format!("eyes_{m}"));
-            let want = eye_sprite(open, smile, drawn.as_deref()).unwrap_or("open");
+            let has = |name: &str| self.items.iter().any(|it| it.name == format!("{name}_{i}"));
+            let mut want = eye_sprite(open, smile, drawn.as_deref()).unwrap_or("open");
+            if want == "eyes_smile" && !has(want) {
+                want = "eyes_closed";
+            }
+            if want != "open" && !has(want) {
+                want = "open";
+            }
             let st = &mut self.eye_state[i];
             if want != st.cur {
                 st.prev = st.cur.clone();
@@ -359,6 +389,7 @@ impl Sprites {
         SpriteCoverage {
             eyes: covered,
             mouth: shape,
+            mouth_drawn: self.mouths_drawn && (def.is_none() || mouth.is_some()),
         }
     }
 }
