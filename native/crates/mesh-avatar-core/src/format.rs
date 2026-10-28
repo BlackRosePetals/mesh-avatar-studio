@@ -170,6 +170,68 @@ impl<'de> Deserialize<'de> for SpriteMetadata {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OverlayDefinition {
+    pub name: String,
+    pub file: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OverlayMetadata {
+    #[serde(default = "legacy_version")]
+    pub version: u32,
+    pub overlays: Vec<OverlayDefinition>,
+}
+
+impl OverlayMetadata {
+    fn parse(bytes: &[u8]) -> Result<Self> {
+        const PATH: &str = "built/overlays/overlays.json";
+        let value: Value =
+            serde_json::from_slice(bytes).context("built/overlays/overlays.json: invalid JSON")?;
+        ensure!(value.is_object(), "{PATH}: expected an object");
+        if let Some(version) = value.get("version") {
+            ensure!(
+                version.as_f64() == Some(1.0),
+                "{PATH}.version: unsupported version {version} (expected 1)"
+            );
+        }
+        let entries = value
+            .get("overlays")
+            .and_then(Value::as_array)
+            .with_context(|| format!("{PATH}.overlays: expected an array"))?;
+        let safe = |name: &str| {
+            !name.is_empty()
+                && name
+                    .bytes()
+                    .all(|c| c.is_ascii_alphanumeric() || c == b'_' || c == b'-')
+        };
+        let mut overlays = Vec::new();
+        let mut seen = BTreeSet::new();
+        for (i, entry) in entries.iter().enumerate() {
+            let name = entry.get("name").and_then(Value::as_str);
+            let file = entry.get("file").and_then(Value::as_str);
+            ensure!(
+                name.is_some_and(safe)
+                    && file.and_then(|s| s.strip_suffix(".png")).is_some_and(safe),
+                "{PATH}.overlays[{i}]: expected {{ name, file }} with safe names"
+            );
+            let name = name.unwrap();
+            ensure!(
+                seen.insert(name.to_owned()),
+                "{PATH}.overlays[{i}].name: duplicate overlay name"
+            );
+            overlays.push(OverlayDefinition {
+                name: name.into(),
+                file: file.unwrap().into(),
+            });
+        }
+        Ok(Self {
+            version: 1,
+            overlays,
+        })
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Texture {
     pub width: u32,
@@ -247,6 +309,7 @@ pub struct AvatarPackage {
     pub rig: Rig,
     pub layers: LayerMetadata,
     pub sprites: Option<SpriteMetadata>,
+    pub overlays: Option<OverlayMetadata>,
     /// Keys relative to built/, for example base.png or sprites/mouth_a.png.
     pub textures: BTreeMap<String, Texture>,
 }
@@ -536,6 +599,9 @@ impl AvatarPackage {
             );
             validate_rectangles(&sprites.layers, layers.size)?;
         }
+        let overlays = read("built/overlays/overlays.json")?
+            .map(|bytes| OverlayMetadata::parse(&bytes))
+            .transpose()?;
         let mut image_rects = BTreeMap::from([
             (
                 "base.png".to_owned(),
@@ -554,6 +620,14 @@ impl AvatarPackage {
                 image_rects.insert(format!("sprites/{name}.png"), *rect);
             }
         }
+        if let Some(overlays) = &overlays {
+            for item in &overlays.overlays {
+                image_rects.insert(
+                    format!("overlays/{}", item.file),
+                    [0, 0, rig.image.width, rig.image.height],
+                );
+            }
+        }
         let mut textures = BTreeMap::new();
         for (name, rect) in image_rects {
             let texture = Texture::decode(&required(&format!("built/{name}"))?)
@@ -569,6 +643,7 @@ impl AvatarPackage {
             rig,
             layers,
             sprites,
+            overlays,
             textures,
         })
     }
@@ -731,6 +806,110 @@ mod tests {
         assert_eq!(packed.textures.len(), folder_avatar.textures.len());
         for (name, texture) in &packed.textures {
             assert_eq!(texture.rgba, folder_avatar.textures[name].rgba);
+        }
+    }
+
+    #[test]
+    fn overlay_metadata_accepts_legacy_and_unknown_keys_but_rejects_unsafe_lists() {
+        for value in [
+            serde_json::json!({"overlays":[]}),
+            serde_json::json!({"version":1,"future":true,"overlays":[{"name":"glasses-1","file":"frame_2.png","future":0}]}),
+        ] {
+            assert_eq!(
+                OverlayMetadata::parse(&serde_json::to_vec(&value).unwrap())
+                    .unwrap()
+                    .version,
+                1
+            );
+        }
+        for (value, expected) in [
+            (
+                serde_json::json!({"version":2,"overlays":[]}),
+                ".version: unsupported version",
+            ),
+            (
+                serde_json::json!({"version":null,"overlays":[]}),
+                ".version: unsupported version",
+            ),
+            (
+                serde_json::json!({"overlays":{}}),
+                ".overlays: expected an array",
+            ),
+            (serde_json::json!({}), ".overlays: expected an array"),
+            (serde_json::json!({"overlays":[null]}), "safe names"),
+            (
+                serde_json::json!({"overlays":[{"name":"glasses"}]}),
+                "safe names",
+            ),
+            (
+                serde_json::json!({"overlays":[{"name":"../x","file":"frame.png"}]}),
+                "safe names",
+            ),
+            (
+                serde_json::json!({"overlays":[{"name":"x","file":"../frame.png"}]}),
+                "safe names",
+            ),
+            (
+                serde_json::json!({"overlays":[{"name":"x","file":"frame.jpg"}]}),
+                "safe names",
+            ),
+            (
+                serde_json::json!({"overlays":[{"name":"x","file":"frame.png"},{"name":"x","file":"other.png"}]}),
+                "duplicate overlay name",
+            ),
+        ] {
+            let error = OverlayMetadata::parse(&serde_json::to_vec(&value).unwrap())
+                .unwrap_err()
+                .to_string();
+            assert!(error.contains(expected), "{error}");
+        }
+    }
+
+    #[test]
+    fn overlays_load_from_folders_and_archives_and_require_full_size_pngs() {
+        let mut files = fixture();
+        assert!(load(&files, false).unwrap().overlays.is_none());
+        files.insert(
+            "built/overlays/overlays.json".into(),
+            br#"{"overlays":[{"name":"glasses","file":"frame.png"}]}"#.to_vec(),
+        );
+        for folder in [false, true] {
+            assert!(load(&files, folder)
+                .unwrap_err()
+                .to_string()
+                .contains("built/overlays/frame.png: missing file"));
+        }
+        let [width, height] = load(&fixture(), false).unwrap().layers.size;
+        let image = "built/overlays/frame.png";
+        files.insert(
+            image.into(),
+            png_bytes(
+                width,
+                height,
+                png::ColorType::Grayscale,
+                &vec![255; (width * height) as usize],
+            ),
+        );
+        let folder = TestFolder::new(&files);
+        let unpacked = AvatarPackage::open(&folder.0).unwrap();
+        let packed = AvatarPackage::from_archive(Cursor::new(archive(&files))).unwrap();
+        assert_eq!(
+            packed.overlays.as_ref().unwrap().overlays[0].name,
+            "glasses"
+        );
+        assert_eq!(
+            packed.textures["overlays/frame.png"].rgba,
+            unpacked.textures["overlays/frame.png"].rgba
+        );
+        for bytes in [
+            vec![1, 2, 3],
+            png_bytes(1, 1, png::ColorType::Grayscale, &[255]),
+        ] {
+            files.insert(image.into(), bytes);
+            for folder in [false, true] {
+                assert!(load(&files, folder).is_err());
+            }
+            assert!(AvatarPackage::from_archive(Cursor::new(archive(&files))).is_err());
         }
     }
 

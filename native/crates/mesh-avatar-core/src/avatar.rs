@@ -135,6 +135,7 @@ pub struct Avatar {
     base: BaseLayer,
     eyes: Vec<EyeLayer>,
     sprites: Option<Sprites>,
+    overlays: crate::engine::overlays::Overlays,
     tassels: Vec<(String, Grid)>,
     hand: Option<HandLayer>,
 }
@@ -152,7 +153,7 @@ impl Avatar {
         )
     }
     pub fn with_rng(
-        package: AvatarPackage,
+        mut package: AvatarPackage,
         options: AvatarOptions,
         rng: Box<dyn RandomSource>,
     ) -> Result<Self> {
@@ -214,6 +215,14 @@ impl Avatar {
             .as_ref()
             .map(|sheet| Sprites::new(&engine, sheet, &package.textures))
             .transpose()?;
+        let overlays = package
+            .overlays
+            .as_ref()
+            .map(|sheet| {
+                crate::engine::overlays::Overlays::new(&engine, sheet, &mut package.textures)
+            })
+            .transpose()?
+            .unwrap_or_default();
         let tassels = r
             .accessories
             .iter()
@@ -262,6 +271,7 @@ impl Avatar {
             base,
             eyes,
             sprites,
+            overlays,
             tassels,
             hand,
         })
@@ -303,6 +313,10 @@ impl Avatar {
     }
     pub fn set_expression(&mut self, name: &str) {
         self.expression.set(name);
+    }
+    /// Show exactly the listed overlay names. Unknown names are ignored; an empty list hides all.
+    pub fn set_overlays(&mut self, names: &[&str]) {
+        self.overlays.set(names);
     }
     pub fn expression(&self) -> (&str, bool) {
         (&self.expression.name, self.expression.active())
@@ -452,6 +466,7 @@ impl Avatar {
                 }
             }
         }
+        self.overlays.update(&engine, &p, phys);
         if let Some(hand) = &mut self.hand {
             let frame = engine.hand_frame(&p);
             for (k, (rest, pos)) in hand
@@ -504,6 +519,16 @@ impl Avatar {
                     ));
                 }
             }
+        }
+        for item in self.overlays.items.iter().filter(|item| item.visible) {
+            layers.push(draw_layer(
+                &format!("overlay_{}", item.name),
+                item.texture.clone(),
+                &item.mesh,
+                1.0,
+                false,
+                None,
+            ));
         }
         for (name, mesh) in &self.tassels {
             layers.push(draw_layer(

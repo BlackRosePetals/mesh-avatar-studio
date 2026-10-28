@@ -269,6 +269,33 @@ pub unsafe extern "C" fn mesh_avatar_set_expression(
         })
     })
 }
+/// Show exactly the listed known overlays; unknown names are ignored. NULL with count=0 hides all.
+/// At most 200 names. Strings are consumed during this call; the cached frame changes on tick.
+/// Invalid input leaves the selection unchanged.
+/// # Safety
+/// names must be readable/aligned for count pointers, each a readable UTF-8 C string.
+#[no_mangle]
+pub unsafe extern "C" fn mesh_avatar_set_overlays(
+    handle: MaHandle,
+    names: *const *const c_char,
+    count: usize,
+) -> MaStatus {
+    boundary(|| {
+        state::with_entry(handle, |entry| {
+            if count > 200 {
+                return Err(Error::new(MA_INVALID_ARGUMENT, "overlay count exceeds 200"));
+            }
+            // SAFETY: The caller provides readable pointers and NUL-terminated strings.
+            let names = unsafe { input_slice(names, count) }?;
+            let names = names
+                .iter()
+                .map(|&name| unsafe { input_str(name) })
+                .collect::<boundary::Result<Vec<_>>>()?;
+            entry.avatar.set_overlays(&names);
+            Ok(())
+        })
+    })
+}
 /// Emotion tag: neutral, happy, sad, angry, surprised or relaxed. play_motion is 0 or 1.
 /// # Safety
 /// tag must be a readable UTF-8 NUL-terminated string.

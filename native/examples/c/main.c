@@ -20,6 +20,9 @@ int main(int argc, char **argv) {
     MaParameter pose[] = {{"angleX", 15.0}, {"mouthOpen", 0.4}};
     CHECK(mesh_avatar_set_parameters(avatar, pose, 2, 1.0));
     CHECK(mesh_avatar_set_expression(avatar, "smile"));
+    /* Optional accessories start hidden. Names absent from this avatar are ignored. */
+    const char *overlays[] = {"glasses"};
+    CHECK(mesh_avatar_set_overlays(avatar, overlays, 1));
     CHECK(mesh_avatar_play(avatar, "nod"));
     for (int i = 0; i < 60; ++i) CHECK(mesh_avatar_tick(avatar, 1.0 / 60.0));
 
@@ -56,6 +59,7 @@ int main(int argc, char **argv) {
     printf("%ux%u: %zu textures, %zu layers, %zu vertices, %zu indices\n",
            info.image_width, info.image_height, texture_count, frame.layer_count, vertices, indices);
     if (mesh_avatar_get_frame(avatar, NULL) != MA_INVALID_ARGUMENT) goto invalid;
+    CHECK(mesh_avatar_set_overlays(avatar, NULL, 0));
     CHECK(mesh_avatar_destroy(avatar));
     if (mesh_avatar_tick(avatar, 0.0) != MA_INVALID_HANDLE) goto invalid;
     puts("C ABI checks passed");

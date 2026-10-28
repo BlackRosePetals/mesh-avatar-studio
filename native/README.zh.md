@@ -37,6 +37,13 @@ mesh-avatar-wgpu = { git = "https://github.com/shinshin86/mesh-avatar-studio.git
 `Avatar::tick` 返回拥有其数据的 `Frame`，包含按绘制顺序排列的图层（顶点坐标、UV、三角形索引、纹理名称和Alpha）以及整帧的面部uniform。`Avatar::textures` 提供解码后的非预乘Alpha RGBA8纹理。
 `mesh-avatar-wgpu::Renderer` 将帧绘制到宿主提供的wgpu纹理视图，也支持RGBA读回。Rust帧拥有其数据；下述指针有效期仅适用于C ABI。
 
+眼镜等可选的[叠加图层](../docs/format.md#overlay-layers)初始为隐藏状态。
+调用 `avatar.set_overlays(&["glasses"])` 显示指定名称的图层，或用 `avatar.set_overlays(&[])` 隐藏全部图层；未知名称会被忽略。
+图层跟随头部，但不受眉毛和下颌变形影响。绘制顺序为眼睛和嘴部精灵之后、流苏和手之前，多个叠加图层按清单中的顺序绘制。
+磁盘上的PNG必须与基础图像尺寸一致；运行时纹理和网格仅覆盖不透明区域及其周围6像素。
+没有叠加图层的虚拟形象保持原有行为。无效元数据、缺失图像和尺寸不匹配会导致加载错误。
+直接构造 `AvatarPackage` 时，没有叠加图层的虚拟形象应将 `overlays` 字段初始化为 `None`。
+
 ### C ABI
 
 从此仓库检出构建 `mesh-avatar-ffi`，会在 `native/target/release/` 生成 `libmesh_avatar_ffi.a` 和平台共享库（macOS上为 `libmesh_avatar_ffi.dylib`）。
@@ -54,6 +61,10 @@ mesh-avatar-wgpu = { git = "https://github.com/shinshin86/mesh-avatar-studio.git
 读取借用数据时，必须与其他线程上的tick或销毁操作同步，避免并发访问。
 检查每个 `MaStatus`，失败时读取 `mesh_avatar_last_error`；错误字符串在同一线程下一次API调用前有效。
 遇到被捕获的Rust panic时，应销毁并重新打开该句柄。生成的头文件也记录了指针、长度和所有权要求。
+
+C接口通过 `mesh_avatar_set_overlays(avatar, names, count)` 选择可见图层。
+`names` 是UTF-8 C字符串数组，最多200项。未知名称会被忽略；传入 `NULL, 0` 隐藏全部图层。
+与其他设置函数一样，更改在下一次tick后生效；无效输入不会改变选择状态。
 
 #### 可选的无窗口渲染
 
