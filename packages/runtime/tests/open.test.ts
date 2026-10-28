@@ -31,7 +31,7 @@ test('archive input forms expose the same rig and asset keys as folder loading',
       expect(await openAvatar(loaded)).toBe(loaded);
     } finally { loaded.release(); }
   }
-  expect(fetch).toHaveBeenCalledTimes(4);
+  expect(fetch).toHaveBeenCalledTimes(5); // includes the optional overlays.json request
 });
 
 test('fetches archive URLs with query strings and creates usable, revocable image and JSON URLs', async () => {

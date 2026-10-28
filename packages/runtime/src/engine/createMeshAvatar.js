@@ -5,6 +5,7 @@ import { createRig } from './rig.js';
 import { createRenderer } from './renderer.js';
 import { createPhysics } from './physics.js';
 import { createSpriteModule, eyeMood } from './sprites.js';
+import { createOverlayLayers } from './overlays.js';
 import { Motion } from './motion.js';
 import { ExpressionOverlay } from './expression-overlay.js';
 import { MOTIONS, IDLE_MOTIONS } from './motions.js';
@@ -40,6 +41,13 @@ function channelOf(img, ch) {
   return a;
 }
 const alphaOf = img => channelOf(img, 3);
+// Overlay layers only: a canvas holding the [x, y, w, h] part of an image (used as a texture).
+function cropImage(img, [x, y, w, h]) {
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  c.getContext('2d').drawImage(img, x, y, w, h, 0, 0, w, h);
+  return c;
+}
 
 // Two-bone skinning along the tassel: top follows segment 1, lower part segment 2.
 function deformTassel(ch, mesh) {
@@ -128,6 +136,18 @@ export async function createMeshAvatarImpl(canvas, options) {
     console.warn('eye / mouth sprites not loaded:', err);
   }
 
+  // optional overlay layers (glasses and other accessories) drawn above the eye / mouth sprites
+  let overlays = null;
+  try {
+    const sheet = await loadJson(asset('overlays/overlays.json'));
+    const images = Object.fromEntries(await Promise.all(sheet.overlays.map(async item =>
+      [item.name, await loadImage(asset(`overlays/${item.file}`))])));
+    overlays = createOverlayLayers(R, sheet, images, buildGrid, alphaOf, baseWeights, rig.mesh.spriteCell, IMG.w, IMG.h, cropImage);
+  } catch (err) {
+    // A folder avatar without overlays simply 404s; only warn when the archive lists them.
+    if (options.assets?.['overlays/overlays.json']) console.warn('overlay layers not loaded:', err);
+  }
+
   const tassels = TASSELS.map(t => {
     const mesh = buildGrid(rects[t.name], rig.mesh.tasselCell, alphaOf(imgs[t.name]), imgs[t.name].width);
     return R.addLayer(t.name, imgs[t.name], mesh);
@@ -186,6 +206,7 @@ export async function createMeshAvatarImpl(canvas, options) {
     // the motion expression is not applied in manual mode, so only the live one counts there
     const cover = sprites?.update(P, phys, dt, eyeMood(expression.name, motion.mode === 'manual' ? null : motion.expr));
     if (cover) for (const ep of eyeParts) if (cover.eyes[ep.eye]) ep.layer.alpha = 0;
+    overlays?.update(P, phys, deformBase, tmp);
     const hp = handMesh.pos, hr = handMesh.rest, HF = handFrame(P);
     for (let i = 0; i < handW.length; i++) {
       deformHand(hr[i * 2], hr[i * 2 + 1], handW[i], P, HF, tmp);
@@ -236,6 +257,8 @@ export async function createMeshAvatarImpl(canvas, options) {
     setEmotion(tag, opts) { motion.setEmotion(tag, opts); },
     /** Live expression layered over tracking (see OVERLAY_EXPRESSIONS); 'neutral' clears it. */
     setExpression(name) { expression.set(name); },
+    /** Show the named overlay layers (built/overlays/overlays.json) and hide the others. */
+    setOverlays(names) { overlays?.set(names); },
     getExpression() { return { name: expression.name, active: expression.active }; },
     /** How much the head moves with the voice while speaking (1 = default, calmer below). */
     setTalkGain(g) { motion.talkGain = Math.max(0, Number(g) || 0); },
