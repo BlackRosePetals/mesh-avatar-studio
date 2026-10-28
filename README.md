@@ -104,6 +104,8 @@ npm run create -- --random --prompt "silver short hair, school uniform"
 
 Start the editor (`npm run dev`), choose **Open project** and pick your project from the list.
 The pencil next to a project renames it, together with its folder under `projects/`.
+If the avatar has overlay layers such as glasses (`built/overlays/`), the preview lists them
+under **Overlays** so you can switch them on and off.
 In the preview, use **Pose test** to turn and tilt the head and close the eyes. In **Lip sync**,
 choose a mouth style and try it with kana text. Open **Fine-tune** to adjust movement, size
 and closing, or preview a local audio file.

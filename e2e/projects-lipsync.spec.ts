@@ -1,7 +1,8 @@
 import { expect, test, type Page } from '@playwright/test';
-import { cp, mkdir, mkdtemp, readFile, rm } from 'node:fs/promises';
+import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { resolve, basename, join } from 'node:path';
 import { createHash } from 'node:crypto';
+import { PNG } from 'pngjs';
 import { request as httpRequest } from 'node:http';
 import fixture from '../samples/miko-qipao/rig.json' with { type: 'json' };
 import { dismissGuide, samplePresent, sampleSkipReason } from './sample';
@@ -190,6 +191,37 @@ test('the edit button renames a project in place, keeps it open and follows it i
   await expect.poll(async () => JSON.parse(await readFile(join(directory, 'rig.json'), 'utf8')).head.cx).toBe(556);
   await page.reload();
   await expect(page.getByTestId('project-location')).toContainText(renamed);
+});
+
+test('overlay layers are listed in the preview and switch on and off', async ({ page }) => {
+  // a full-size transparent image with one opaque block over the face
+  const { width, height } = fixture.image, overlay = new PNG({ width, height });
+  const [x0, y0] = [Math.round(fixture.face.nose.cx) - 60, Math.round(fixture.face.nose.cy) - 20];
+  for (let y = y0; y < y0 + 40; y++) for (let x = x0; x < x0 + 120; x++) overlay.data.set([20, 20, 20, 255], (y * width + x) * 4);
+  await mkdir(join(directory, 'built/overlays'), { recursive: true });
+  await writeFile(join(directory, 'built/overlays/glasses.png'), PNG.sync.write(overlay));
+  await writeFile(join(directory, 'built/overlays/overlays.json'), JSON.stringify({ version: 1, overlays: [{ name: 'glasses', file: 'glasses.png' }] }));
+  await open(page, name);
+  const tools = page.getByTestId('overlay-tools'), toggle = tools.getByRole('button', { name: 'glasses', exact: true });
+  await expect(tools).toContainText('Overlays');
+  await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+  const hash = async () => createHash('sha256').update(await page.getByTestId('preview').screenshot()).digest('hex');
+  await page.getByTestId('idle-toggle').first().click();
+  // Switching redraws the paused preview, so the reference is a redrawn frame with the overlay hidden.
+  await toggle.click(); await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+  let plain = '';
+  await expect.poll(async () => { const first = await hash(); await page.waitForTimeout(500); plain = await hash(); return first === plain; }, { timeout: 15_000 }).toBe(true);
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+  await expect.poll(hash).not.toBe(plain);
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+  await expect.poll(hash).toBe(plain);
+  // projects without overlays show no overlay controls
+  await page.locator('.open-menu > summary').click(); await page.getByTestId('project-sample-miko-qipao').click();
+  await expect(page.getByTestId('preview-status')).toHaveAttribute('data-state', 'ready');
+  await expect(page.getByTestId('overlay-tools')).toHaveCount(0);
 });
 
 test('a ?project= address opens that project instead of the recent one and is then removed', async ({ page }) => {
