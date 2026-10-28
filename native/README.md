@@ -46,6 +46,17 @@ straight RGBA8 textures. `mesh-avatar-wgpu::Renderer` draws that frame into a ho
 texture view, or reads it back to RGBA. Rust frame data is owned; the C pointer
 lifetimes below apply only to the C ABI.
 
+Optional [overlay layers](../docs/format.md#overlay-layers), such as glasses, start
+hidden. Call `avatar.set_overlays(&["glasses"])` to show selected names or
+`avatar.set_overlays(&[])` to hide all; unknown names are ignored. Overlays follow
+the head without brow or jaw deformation, after eye/mouth sprites and before
+tassels and the hand, in manifest order. On disk, overlay PNGs match the base image
+size; runtime textures and meshes cover only their opaque bounds plus six pixels
+of padding. Avatars without overlays keep their existing behavior. Malformed
+overlay metadata, missing images and size mismatches are load errors.
+If you construct `AvatarPackage` directly, initialize its `overlays` field with
+`None` for avatars without overlays.
+
 ### C ABI
 
 Build `mesh-avatar-ffi` from this checkout for `libmesh_avatar_ffi.a` and a platform
@@ -73,6 +84,11 @@ borrowed reads against tick/destroy on other threads. Check every `MaStatus`;
 `mesh_avatar_last_error` returns a thread-local message until the next API call
 on that thread. A contained Rust panic requires destroying and reopening that
 handle. The generated header documents pointer/count and ownership requirements.
+
+`mesh_avatar_set_overlays(avatar, names, count)` selects the visible overlays;
+`names` is an array of UTF-8 C strings, with at most 200 entries. Unknown names are
+ignored. Pass `NULL, 0` to hide all. As with other setters, changes appear on the
+next tick; invalid input leaves the selection unchanged.
 
 #### Optional headless rendering
 

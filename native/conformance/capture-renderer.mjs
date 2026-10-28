@@ -16,7 +16,7 @@ export function createRenderer(engine, rig) {
     snapshot() {
       const state = this.state, mouth = rig.mouth;
       return { layers: this.layers.filter(layer => layer.visible && !layer.overlay).map(layer => ({
-        name: layer.name, texture: `${layer.name.startsWith('eyes_') || layer.name.startsWith('mouth_') ? 'sprites/' : ''}${layer.name}.png`,
+        name: layer.name, texture: layer.image.asset ?? `${layer.name.startsWith('eyes_') || layer.name.startsWith('mouth_') ? 'sprites/' : ''}${layer.name}.png`,
         rect: layer.mesh.rect, positions: Array.from(layer.mesh.pos), uvs: Array.from(layer.mesh.uv), indices: Array.from(layer.mesh.tris),
         alpha: layer.alpha ?? 1, face: !!layer.face, eye_ball: layer.eyeBall ?? null,
       })), uniforms: {

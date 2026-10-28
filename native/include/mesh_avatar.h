@@ -244,6 +244,15 @@ MaStatus mesh_avatar_set_parameters(MaHandle handle,
 MaStatus mesh_avatar_set_expression(MaHandle handle, const char *name);
 
 /**
+ * Show exactly the listed known overlays; unknown names are ignored. NULL with count=0 hides all.
+ * At most 200 names. Strings are consumed during this call; the cached frame changes on tick.
+ * Invalid input leaves the selection unchanged.
+ * # Safety
+ * names must be readable/aligned for count pointers, each a readable UTF-8 C string.
+ */
+MaStatus mesh_avatar_set_overlays(MaHandle handle, const char *const *names, size_t count);
+
+/**
  * Emotion tag: neutral, happy, sad, angry, surprised or relaxed. play_motion is 0 or 1.
  * # Safety
  * tag must be a readable UTF-8 NUL-terminated string.

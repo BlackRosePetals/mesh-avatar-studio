@@ -693,7 +693,7 @@ mod tests {
             eprintln!("GPU adapter unavailable; skipping GPU readback check.");
             return;
         };
-        let images = BTreeMap::from([(
+        let mut images = BTreeMap::from([(
             "quad.png".into(),
             Texture {
                 width: 2,
@@ -701,6 +701,14 @@ mod tests {
                 rgba: [200, 100, 50, 128].repeat(4),
             },
         )]);
+        images.insert(
+            "overlays/frame.png".into(),
+            Texture {
+                width: 2,
+                height: 2,
+                rgba: [20, 200, 80, 255].repeat(4),
+            },
+        );
         let mut renderer =
             Renderer::new(&device, &queue, wgpu::TextureFormat::Rgba8Unorm, 1, &images).unwrap();
         let mut frame = Frame {
@@ -750,6 +758,23 @@ mod tests {
         {
             assert!(actual.abs_diff(expected) <= 1);
         }
+        let mut overlay = frame.layers[0].clone();
+        overlay.name = "overlay_glasses".into();
+        overlay.texture = "overlays/frame.png".into();
+        frame.layers.push(overlay);
+        let front = renderer.render_rgba(&frame, [8, 8], &view).unwrap();
+        assert_eq!(&front[center..center + 4], &[20, 200, 80, 255]);
+        // Later layers (including tassels and the hand) must still draw above overlays.
+        frame.layers.swap(0, 1);
+        let behind = renderer.render_rgba(&frame, [8, 8], &view).unwrap();
+        for (actual, expected) in behind[center..center + 4]
+            .iter()
+            .zip([110_u8, 150, 65, 255])
+        {
+            assert!(actual.abs_diff(expected) <= 1);
+        }
+        frame.layers.remove(0);
+        assert_eq!(renderer.render_rgba(&frame, [8, 8], &view).unwrap(), first);
         for position in frame.layers[0].positions.as_chunks_mut::<2>().0 {
             position[0] += 1.0;
         }

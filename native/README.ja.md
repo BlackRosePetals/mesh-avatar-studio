@@ -39,6 +39,13 @@ mesh-avatar-wgpu = { git = "https://github.com/shinshin86/mesh-avatar-studio.git
 `mesh-avatar-wgpu::Renderer` はそのフレームをホストが用意したwgpuのテクスチャビューへ描画し、RGBAへの読み戻しにも対応します。
 Rustのフレームはデータを所有します。以下のポインターの有効期間はC ABIだけの条件です。
 
+眼鏡などの任意の[重ね描き用レイヤー](../docs/format.md#overlay-layers)は、最初は非表示です。
+`avatar.set_overlays(&["glasses"])` で名前を指定して表示し、`avatar.set_overlays(&[])` ですべて非表示にします。存在しない名前は無視します。
+眉や顎の変形を受けずに頭へ追従し、目・口のスプライトの後、房と手の前に、マニフェストの順番で描画します。
+保存するPNGはベース画像と同じサイズですが、実行時のテクスチャとメッシュは、不透明部分の周囲6ピクセルまでを使います。
+このレイヤーがないアバターの動作は変わりません。不正なメタデータ、画像の欠損、サイズの不一致は読み込みエラーになります。
+`AvatarPackage` を直接組み立てる場合、レイヤーのないアバターでは `overlays` に `None` を指定してください。
+
 ### C ABI
 
 このチェックアウトから `mesh-avatar-ffi` をビルドすると、`native/target/release/` に `libmesh_avatar_ffi.a` と共有ライブラリ（macOSでは `libmesh_avatar_ffi.dylib`）ができます。
@@ -56,6 +63,10 @@ Rustのフレームはデータを所有します。以下のポインターの�
 tick後も必要なデータはコピーし、別スレッドからのtick・破棄とデータの読み取りが重ならないよう同期してください。
 各関数の `MaStatus` を確認し、失敗時は `mesh_avatar_last_error` を読みます。エラー文字列は同じスレッドで次のAPIを呼ぶまで有効です。
 Rustのpanicを検知したハンドルは、破棄して開き直します。ポインターと要素数、所有権の条件は生成ヘッダーにも記載しています。
+
+Cでは `mesh_avatar_set_overlays(avatar, names, count)` で表示するレイヤーを指定します。
+`names` はUTF-8のC文字列の配列で、最大200件です。存在しない名前は無視し、`NULL, 0` を渡すとすべて非表示にします。
+ほかの設定関数と同じく、次のtickで描画に反映します。不正な入力では選択状態を変更しません。
 
 #### 任意機能のヘッドレス描画
 

@@ -4,6 +4,7 @@ pub mod kana;
 pub mod lip_sync;
 pub mod motion;
 pub mod motions;
+pub(crate) mod overlays;
 pub mod physics;
 pub mod random;
 pub mod rig;

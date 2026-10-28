@@ -2,7 +2,7 @@ use mesh_avatar_core::{
     engine::{
         grid::Grid, kana::Vowel, lip_sync::LipSyncSettings, random::SeededRandom, rig::Parameters,
     },
-    format::AvatarPackage,
+    format::{AvatarPackage, OverlayMetadata, Texture},
     Avatar, AvatarOptions, FaceUniforms,
 };
 use serde::{de::DeserializeOwned, Deserialize};
@@ -64,6 +64,10 @@ struct Sequence {
     has_sprites: bool,
     #[serde(rename = "preserveMouthForm")]
     preserve_mouth_form: bool,
+    #[serde(default)]
+    overlays: Option<OverlayMetadata>,
+    #[serde(default, rename = "overlayGrids")]
+    overlay_grids: Vec<NamedGrid>,
     actions: Vec<Value>,
     samples: Vec<Sample>,
 }
@@ -116,6 +120,13 @@ fn action(avatar: &mut Avatar, event: &Value) {
                 .unwrap_or(true),
         ),
         "setExpression" => avatar.set_expression(arg.as_str().unwrap()),
+        "setOverlays" => avatar.set_overlays(
+            &arg.as_array()
+                .unwrap()
+                .iter()
+                .map(|v| v.as_str().unwrap())
+                .collect::<Vec<_>>(),
+        ),
         "speakKana" => avatar.speak_kana(
             arg.as_str().unwrap(),
             event
@@ -153,6 +164,21 @@ fn full_avatar_tick_draw_list_and_uniforms_match_real_javascript_tick_path() {
         if !expected.has_sprites {
             package.sprites = None;
         }
+        if let Some(overlays) = &expected.overlays {
+            for item in &overlays.overlays {
+                let name = format!("overlays/{}", item.file);
+                let bytes = fs::read(
+                    Path::new(env!("CARGO_MANIFEST_DIR"))
+                        .join("../../target/conformance")
+                        .join(&name),
+                )
+                .unwrap();
+                package
+                    .textures
+                    .insert(name, Texture::decode(&bytes).unwrap());
+            }
+        }
+        package.overlays = expected.overlays.clone();
         let mut avatar = Avatar::with_rng(
             package,
             AvatarOptions {
@@ -162,6 +188,7 @@ fn full_avatar_tick_draw_list_and_uniforms_match_real_javascript_tick_path() {
             Box::new(SeededRandom::new(173)),
         )
         .unwrap();
+        let overlay_grids = &expected.overlay_grids;
         let mut sample = 0;
         let mut events = vec![];
         for frame in 0..1200 {
@@ -210,6 +237,7 @@ fn full_avatar_tick_draw_list_and_uniforms_match_real_javascript_tick_path() {
                 let grid = &grids
                     .grids
                     .iter()
+                    .chain(overlay_grids)
                     .find(|g| g.name == actual.name)
                     .unwrap()
                     .mesh;
@@ -269,4 +297,84 @@ fn public_api_validates_settings_and_exposes_owned_texture_and_frame_data() {
             ..Default::default()
         })
         .is_err());
+}
+
+#[test]
+fn hidden_overlays_preserve_frames_and_visible_overlays_follow_manifest_draw_order() {
+    use mesh_avatar_core::format::OverlayDefinition;
+    let mut baseline = Avatar::from_package(package()).unwrap();
+    let mut package = package();
+    let (width, height) = (package.rig.image.width, package.rig.image.height);
+    let mut image = Texture {
+        width,
+        height,
+        rgba: vec![0; (width * height * 4) as usize],
+    };
+    let i = ((height / 3 * width + width / 3) * 4) as usize;
+    image.rgba[i..i + 4].copy_from_slice(&[30, 80, 120, 128]);
+    package.textures.insert("overlays/frame.png".into(), image);
+    package.overlays = Some(OverlayMetadata {
+        version: 1,
+        overlays: ["z-last", "a-first"]
+            .map(|name| OverlayDefinition {
+                name: name.into(),
+                file: "frame.png".into(),
+            })
+            .to_vec(),
+    });
+    let accessories: Vec<_> = package
+        .rig
+        .accessories
+        .iter()
+        .map(|item| item.name.clone())
+        .collect();
+    let has_hand = package.rig.hand.is_some();
+    let mut avatar = Avatar::from_package(package).unwrap();
+    for runtime in [&mut baseline, &mut avatar] {
+        runtime.set_auto_idle(false);
+        runtime.set_auto_motion(false);
+        runtime.set_parameters(BTreeMap::from([
+            ("angleX".into(), 30.0),
+            ("browY".into(), 1.0),
+            ("mouthOpen".into(), 1.0),
+        ]));
+    }
+    for dt in [0.0, 1.0 / 60.0, 0.05] {
+        assert_eq!(
+            serde_json::to_value(avatar.tick(dt)).unwrap(),
+            serde_json::to_value(baseline.tick(dt)).unwrap()
+        );
+    }
+    avatar.set_overlays(&["a-first", "unknown", "z-last"]);
+    let mut shown = avatar.tick(0.0);
+    let position = |name: &str| {
+        shown
+            .layers
+            .iter()
+            .position(|layer| layer.name == name)
+            .unwrap()
+    };
+    let first = position("overlay_z-last");
+    assert_eq!(position("overlay_a-first"), first + 1);
+    for name in &accessories {
+        assert!(position(name) > first + 1);
+    }
+    if has_hand {
+        assert!(position("hand") > first + 1);
+    }
+    assert!(shown.layers[..first]
+        .iter()
+        .all(|layer| !layer.texture.starts_with("overlays/")));
+    shown
+        .layers
+        .retain(|layer| !layer.texture.starts_with("overlays/"));
+    assert_eq!(
+        serde_json::to_value(shown).unwrap(),
+        serde_json::to_value(baseline.tick(0.0)).unwrap()
+    );
+    avatar.set_overlays(&["unknown"]);
+    assert_eq!(
+        serde_json::to_value(avatar.tick(0.0)).unwrap(),
+        serde_json::to_value(baseline.tick(0.0)).unwrap()
+    );
 }

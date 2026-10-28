@@ -74,6 +74,26 @@ fn nulls_invalid_tokens_utf8_lengths_and_indices_are_checked() {
         MA_INVALID_HANDLE
     );
     assert_eq!(
+        unsafe { mesh_avatar_set_overlays(0, ptr::without_provenance(1), 1) },
+        MA_INVALID_HANDLE
+    );
+    assert_eq!(
+        unsafe { mesh_avatar_set_overlays(h, ptr::null(), 1) },
+        MA_INVALID_ARGUMENT
+    );
+    assert_eq!(
+        unsafe { mesh_avatar_set_overlays(h, ptr::without_provenance(1), 1) },
+        MA_INVALID_ARGUMENT
+    );
+    assert_eq!(
+        unsafe { mesh_avatar_set_overlays(h, ptr::without_provenance(1), usize::MAX) },
+        MA_INVALID_ARGUMENT
+    );
+    assert_eq!(
+        unsafe { mesh_avatar_set_overlays(h, ptr::null(), 0) },
+        MA_OK
+    );
+    assert_eq!(
         unsafe { mesh_avatar_get_frame(h, ptr::null_mut()) },
         MA_INVALID_ARGUMENT
     );
@@ -289,6 +309,69 @@ fn archive_input_is_consumed_without_retaining_the_caller_buffer() {
         MA_LOAD_ERROR
     );
     assert_eq!(h, 0);
+}
+
+#[test]
+fn overlay_selection_is_atomic_and_applies_on_the_next_tick() {
+    use mesh_avatar_core::format::{OverlayDefinition, OverlayMetadata, Texture};
+    let mut package = AvatarPackage::open(sample()).unwrap();
+    let (width, height) = (package.rig.image.width, package.rig.image.height);
+    let mut image = Texture {
+        width,
+        height,
+        rgba: vec![0; (width * height * 4) as usize],
+    };
+    let i = ((height / 3 * width + width / 3) * 4) as usize;
+    image.rgba[i..i + 4].copy_from_slice(&[80, 110, 140, 255]);
+    package.textures.insert("overlays/frame.png".into(), image);
+    package.overlays = Some(OverlayMetadata {
+        version: 1,
+        overlays: vec![OverlayDefinition {
+            name: "glasses".into(),
+            file: "frame.png".into(),
+        }],
+    });
+    let avatar = Avatar::from_package(package).unwrap();
+    let h = state::insert(state::Entry::new(avatar).map_err(|e| e.message).unwrap())
+        .map_err(|e| e.message)
+        .unwrap();
+    let before = frame(h);
+    let names = [
+        c"glasses".as_ptr(),
+        c"unknown".as_ptr(),
+        c"glasses".as_ptr(),
+    ];
+    assert_eq!(
+        unsafe { mesh_avatar_set_overlays(h, names.as_ptr(), names.len()) },
+        MA_OK
+    );
+    assert_eq!(frame(h).layers, before.layers);
+    let invalid = [0xff_u8, 0];
+    for bad in [ptr::null(), invalid.as_ptr().cast()] {
+        let names = [c"unknown".as_ptr(), bad];
+        assert_eq!(
+            unsafe { mesh_avatar_set_overlays(h, names.as_ptr(), names.len()) },
+            MA_INVALID_ARGUMENT
+        );
+    }
+    assert_eq!(mesh_avatar_tick(h, 0.0), MA_OK);
+    assert_eq!(frame(h).layer_count, before.layer_count + 1);
+    let shown = frame(h);
+    let layers = unsafe { std::slice::from_raw_parts(shown.layers, shown.layer_count) };
+    let overlay = layers
+        .iter()
+        .find(|layer| unsafe { CStr::from_ptr(layer.name) } == c"overlay_glasses")
+        .unwrap();
+    let image = texture(h, overlay.texture_id as usize);
+    assert_eq!((image.width, image.height), (13, 13));
+    assert_eq!(
+        unsafe { mesh_avatar_set_overlays(h, ptr::null(), 0) },
+        MA_OK
+    );
+    assert_eq!(frame(h).layer_count, shown.layer_count);
+    assert_eq!(mesh_avatar_tick(h, 0.0), MA_OK);
+    assert_eq!(frame(h).layer_count, before.layer_count);
+    assert_eq!(mesh_avatar_destroy(h), MA_OK);
 }
 
 #[test]
