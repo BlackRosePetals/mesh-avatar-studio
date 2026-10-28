@@ -24,6 +24,7 @@ export const uiZh = {
   lineHint: '拖动控制点 · 双击线段添加点 · Alt + 点击控制点删除',
   panHint: '双指捏合缩放 · 滚动或拖动空白处平移', noDots: '在选中部件的面板中调整数值',
   preview: '实时预览', idle: '待机动作', play: '播放待机动作', pause: '暂停待机动作',
+  overlays: '叠加层', overlayToggle: '显示或隐藏叠加层',
   pose: '姿态测试', reset: '重置', sweep: '连续测试角度', stopSweep: '停止角度测试',
   lipSync: '嘴型测试', release: '松开嘴型', lipText: '日语假名文本', lipPlay: '播放', lipStop: '停止',
   lipSpeed: '每秒音拍数', lipLoop: '循环', skippedKana: '已跳过的字符：', lipHelp: '支持日语假名和空格（あ=a、い=i、う=u、え=e、お=o）。仅预览嘴型，不播放声音。',
