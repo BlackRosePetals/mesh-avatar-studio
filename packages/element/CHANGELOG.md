@@ -1,5 +1,16 @@
 # mesh-avatar-element
 
+## 0.3.0
+
+### Minor Changes
+
+- 43b82d0: Add the `overlays` attribute and property to show an avatar's optional overlay layers, such as glasses, by name. The choice is kept when the avatar reloads.
+
+### Patch Changes
+
+- Updated dependencies [9d752c1]
+  - mesh-avatar@0.4.0
+
 ## 0.2.1
 
 ### Patch Changes
