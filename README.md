@@ -174,6 +174,10 @@ Optional **Lighting** adds shading that follows a light you drag over the avatar
 by default; open its section near the bottom of the Live page, or below the preview in the
 editor. The OBS URL includes the lighting settings. See [Lighting](docs/reference.md#lighting).
 
+If the avatar has overlay layers such as glasses (`built/overlays/`), the **Overlays** section
+of the Live page switches them on and off. The stream view follows at once, and the OBS URL
+includes the overlays that are shown.
+
 Keep the Live page open in its own window. Open the OBS URL inside OBS or in another
 tab; do not paste it into the tab running Live. If the page reports that tracking has
 stopped or slowed while hidden, bring its window to the front.
