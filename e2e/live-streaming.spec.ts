@@ -229,21 +229,27 @@ test('overlay switches on the Live page reach the stream view and its OBS URL', 
     await expect(toggle).toHaveAttribute('aria-pressed', 'false');
     const canvas = page.locator('#avatar');
     const shot = async () => PNG.sync.read(await canvas.screenshot());
-    const changed = (a: PNG, b: PNG) => { let count = 0; for (let i = 0; i < a.data.length; i += 4) if (Math.abs(a.data[i] - b.data[i]) > 40) count++; return count; };
+    // Pixels the dark overlay block turns near-black; the swinging tassels are red, so they never count.
+    const dark = (image: PNG, i: number) => image.data[i] < 45 && image.data[i + 1] < 45 && image.data[i + 2] < 45;
     const before = await shot();
+    let block: number[] = [];
     await toggle.click();
     await expect(toggle).toHaveAttribute('aria-pressed', 'true');
-    await expect.poll(async () => changed(before, await shot())).toBeGreaterThan(1000);
+    await expect.poll(async () => {
+      const on = await shot();
+      block = [];
+      for (let i = 0; i < on.data.length; i += 4) if (dark(on, i) && !dark(before, i)) block.push(i);
+      return block.length;
+    }).toBeGreaterThan(500);
+    const stillDark = async (page: Page) => { const image = PNG.sync.read(await page.locator('#avatar').screenshot()); return block.filter(i => dark(image, i)).length; };
     expect(new URL(await live.locator('.obs-url').inputValue()).searchParams.get('overlays')).toBe('glasses');
     // a stream view opened from that URL starts with the overlay shown
     const fromUrl = await context.newPage();
-    await ready(fromUrl, `${new URL(await live.locator('.obs-url').inputValue()).pathname}?project=${name}&bg=green&idle=0&overlays=glasses`);
-    await expect.poll(async () => changed(before, PNG.sync.read(await fromUrl.locator('#avatar').screenshot()))).toBeGreaterThan(1000);
-    const shown = changed(before, await shot());
+    await ready(fromUrl, `/stream.html?project=${name}&bg=green&idle=0&overlays=glasses`);
+    await expect.poll(() => stillDark(fromUrl)).toBeGreaterThan(block.length * 0.8);
     await toggle.click();
     await expect(toggle).toHaveAttribute('aria-pressed', 'false');
-    // The tassels keep swinging, so hiding returns most of the way rather than to identical pixels.
-    await expect.poll(async () => changed(before, await shot())).toBeLessThan(shown / 3);
+    await expect.poll(() => stillDark(page)).toBeLessThan(block.length * 0.1);
     // the choice is remembered for the project
     await live.reload(); await expect(live.locator('canvas[data-state="ready"]')).toBeVisible();
     await expect(live.getByTestId('overlay-section').getByRole('button', { name: 'glasses', exact: true })).toHaveAttribute('aria-pressed', 'false');
